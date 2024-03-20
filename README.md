@@ -250,32 +250,25 @@ type_annotation       = "int" | "float" | "bool" | "str" ;
 
 block                 = "{" , { statement } , "}" ;
 
-statement             = variable_declaration
-                      | variable_assignment
+statement             = declar_assign_call
                       | conditional_statement
                       | loop_statement
-                      | function_call
-                      | type_cast
                       | switch_statement
                       | return_statement
                       ;
+                      
+declar_assign_call    = identifier, [ ( ( ":=" | "=" ), expression ) | "(", [ argumets ], ")" ] ;
 
-variable_declaration  = identifier , ":=" , expression ;
-
-variable_assignment   = identifier , "=" , expression ;
+arguments             = expression , { "," , expression } ;
 
 conditional_statement = "if" , expression , block , [ "else" , block ] ;
 
 loop_statement        = "while" , expression, block ;
 
-function_call         = identifier , "(", arguments, ")" ;
-
 switch_statement      = "switch", expression, "{", switch_case, { ",", switch_case "}" ;
 switch_case           = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ), } ; 
 
 return_statement      = "return" , [ expression ] ;
-
-arguments             = expression , { "," , expression } ;
 
 expression            = conjunction_term, { "or", conjunction_term } ;
 conjunction_term      = relation_term, { "and", relation_term } ;
@@ -287,18 +280,15 @@ relation_operator     = ">="
                       | "=="
                       | "!=" 
                       ;
-
 additive_term         = multiplicative_term, { ("+" | "-"), multiplicative_term } ;
 multiplicative_term   = unary_operator, { ("*" | "/"), unary_operator } ; 
-unary_operator        = [ ("-" | "!") ], type_cast ;
-type_cast             = term, [ "as", type_annotation ] ;
+unary_operator        = [ ("-" | "!") ], casted_term ;
+casted_term           = term, [ "as", type_annotation ] ;
 term                  = integer
                       | float
                       | bool
                       | string
-                      | identifier
-                      | function_call
-                      | type_cast
+                      | declar_assign_call
                       | switch_element
                       | "(" , expression , ")"
                       ;
@@ -559,14 +549,14 @@ Error [3:12]: Division by zero is prohibited.
 4. Operatory logiczne:
     - **`AND`**
     - **`OR`**
-    - `**NEGATE**` ( “-” lub “!”)
+    - **`NEGATE`** ( “-” lub “!”)
 5. Słowa kluczowe:
     - **`IF`**
     - **`ELSE`**
     - **`FOR`**
     - **`SWITCH`**
     - **`DEFAULT`**
-    - `**AS**`
+    - **`AS`**
     - **`RETURN`**
 6. Symbole specjalne:
     - **`ASSIGN`** (**`:=`**)
@@ -577,27 +567,28 @@ Error [3:12]: Division by zero is prohibited.
     - **`RIGHT_PARENTHESIS`** (**`)`**)
     - **`COMMA`** (**`,`**)
 7. Typy danych:
-- **`INTEGER`**
-- **`FLOAT`**
-- **`STRING`**
-- **`BOOL`**
-1. Funkcje i procedury:
+    - **`INTEGER`**
+    - **`FLOAT`**
+    - **`STRING`**
+    - **`BOOL`**
+8. Funkcje i procedury:
     - **`FUNCTION_DEFINITION`**
     - **`FUNCTION_CALL`**
     - **`PARAMETER`**
     - **`ARGUMENT`**
-2. Ostrzeżenia i błędy:
+9. Ostrzeżenia i błędy:
     - **`ERROR`**
     - **`WARNING`**
-3. Inne:
+10. Inne:
     - **`ERROR_MESSAGE`**
     - **`WARNING_MESSAGE`**
-    - **`STX`** (start of text) ****
-    - **`ETX`** (end of text) ****
-4. Struktura tokenu
-    - `**TOKEN_TYPE**`
-    - `**UNDEFIND_TOKEN**`
-    - `**POSSITION**`
+    - **`STX`** (start of text)
+    - **`ETX`** (end of text)
+11. Struktura tokenu
+    - **`TOKEN_TYPE`**
+    - **`UNDEFIND_TOKEN`**
+    - **`COMMENT`**
+    - **`POSSITION`**
 
 ## Specyfikacja danych wejściowych strumienie/pliki i danych konfiguracyjnych
 
@@ -639,10 +630,18 @@ Hello Word from steam!
 
 1. Wymagania Funkcjonalne:
     - Obsługa Inicjalizacji i Przypisania Zmiennych.
+        - maksymalne długości typów:
+            - int:
+                - maksymalna długość to ta, na którą pozwala język golang dla int64 (9223372036854775807, -9223372036854775808)
+            - float:
+                - maksymalna wielkość 64 bity, co daje około 15-17 cyfr dziesiętnych dokładności.
+            - string:
+                - aby zapobiec DoS maksymalną długością jest 64-128 kilobajtów.
     - Wykonywanie Operacji Arytmetycznych np.dodawanie, odejmowanie, mnożenie i dzielenie.
     - Obsługa Instrukcji Warunkowych.
     - Instrukcje pętli**,** obsługa pętli while.
     - Funkcje Rekurencyjne: Zapewnienie wywoływanie funkcji rekurencyjnych.
+        - Maksymalna głębokość rekurencji: 500
     - Obsługa Relacyjnych Wzorców w Instrukcjach Switch**:** Implementacji instrukcji switch, która może dopasowywać się do relacyjnych wzorców w celu podejmowania decyzji.
 2. Wymagania Niefunkcjonalne:
     - Statyczne i silne typowanie.

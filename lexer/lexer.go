@@ -4,20 +4,17 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"strings"
 	"unicode"
 )
 
 type Lexer struct {
-	// singleChar map[rune]TokenTypes
-	// keyWords   map[string]TokenTypes
 	source Scanner
 	pos    Position
 }
 
 func NewLexer(reader io.Reader) *Lexer {
 	return &Lexer{
-		// singleChar: SingleChar,
-		// keyWords:   KeyWords,
 		source: *NewScanner(reader),
 	}
 }
@@ -43,6 +40,11 @@ func (l *Lexer) tryMatch() (t Token) {
 	if l.source.Current == '\n' {
 		t = NewBaseToken(EOL)
 		l.Consume()
+		return t
+	}
+
+	t = l.createString()
+	if t != nil {
 		return t
 	}
 
@@ -146,4 +148,43 @@ func (l *Lexer) createIdentifier() Token {
 	}
 
 	return NewIdentifierToken(string(identifier))
+}
+
+func (l *Lexer) createString() Token {
+	if l.source.Current != '"' {
+		return nil
+	}
+
+	var strBuilder strings.Builder
+	l.Consume()
+	for l.source.Current != '"' && l.source.Current != EOF {
+		if l.source.Current == '\\' {
+			l.Consume()
+			if l.source.Current == EOF {
+				return nil
+			}
+			switch l.source.Current {
+			case 'n':
+				strBuilder.WriteRune('\n')
+			case 't':
+				strBuilder.WriteRune('\t')
+			case '"':
+				strBuilder.WriteRune('"')
+			case '\\':
+				strBuilder.WriteRune('\\')
+			default:
+				return nil
+			}
+		} else {
+			strBuilder.WriteRune(l.source.Current)
+		}
+		l.Consume()
+	}
+
+	if l.source.Current != '"' {
+		return nil
+	}
+
+	l.Consume()
+	return NewStringToken(strBuilder.String())
 }

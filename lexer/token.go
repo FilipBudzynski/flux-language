@@ -2,11 +2,52 @@ package lexer
 
 import "fmt"
 
+var SingleChar = map[rune]TokenTypes{
+	'+': PLUS,
+	'-': MINUS,
+	'*': MULTIPLY,
+	'/': DIVIDE,
+	'{': LEFT_BRACE,
+	'}': RIGHT_BRACE,
+	'(': LEFT_PARENTHESIS,
+	')': RIGHT_PARENTHESIS,
+	',': COMMA,
+	'>': GREATER_THAN,
+	'<': LESS_THAN,
+	'=': ASSIGN,
+}
+
+var KeyWords = map[string]TokenTypes{
+	"int":     INT,
+	"string":  STRING,
+	"bool":    BOOL,
+	"float":   FLOAT,
+	"switch":  SWITCH,
+	"while":   WHILE,
+	"if":      IF,
+	"else":    ELSE,
+	"default": DEFAULT,
+	"return":  RETURN,
+	"print":   PRINT,
+	"and":     AND,
+	"or":      OR,
+}
+
+var DoubleOperators = map[string]TokenTypes{
+	"<=": LESS_OR_EQUAL,
+	">=": GREATER_OR_EQUAL,
+	"==": EQUALS,
+	"!=": NOT_EQUALS,
+	"->": CASE_ARROW,
+	":=": DECLARE,
+}
+
 type Token interface {
 	IsEqual(token Token) bool
 	GetType() TokenTypes
 	GetName() string
 	ShowDetails()
+	SetPosition(Position)
 }
 
 type baseToken struct {
@@ -14,10 +55,9 @@ type baseToken struct {
 	Pos  Position
 }
 
-func NewBaseToken(token_type TokenTypes, pos Position) *baseToken {
+func NewBaseToken(token_type TokenTypes) *baseToken {
 	return &baseToken{
 		Type: token_type,
-		Pos:  pos,
 	}
 }
 
@@ -38,6 +78,10 @@ func (b *baseToken) GetType() TokenTypes {
 
 func (b *baseToken) GetName() string {
 	return b.Type.GetName()
+}
+
+func (b *baseToken) SetPosition(position Position) {
+	b.Pos = position
 }
 
 type TokenTypes int
@@ -62,11 +106,11 @@ const (
 	DIVIDE
 	// relational operators
 	EQUALS
-	NO_EQUALS
+	NOT_EQUALS
 	GREATER_THAN
 	LESS_THAN
-	GREATER_THAN_OR_EQUAL
-	LESS_THAN_OREQUAL
+	GREATER_OR_EQUAL
+	LESS_OR_EQUAL
 	// logic operators
 	AND
 	OR
@@ -78,6 +122,7 @@ const (
 	SWITCH
 	DEFAULT
 	AS
+	PRINT
 	RETURN
 	// special symbols
 	DECLARE
@@ -116,11 +161,11 @@ var tokenTypeNames = [...]string{
 	"MULTIPLY",
 	"DIVIDE",
 	"EQUALS",
-	"NO_EQUALS",
+	"NOT_EQUALS",
 	"GREATER_THAN",
 	"LESS_THAN",
-	"GREATER_THAN_OR_EQUAL",
-	"LESS_THAN_OREQUAL",
+	"GREATER_OR_EQUAL",
+	"LESS_OR_EQUAL",
 	"AND",
 	"OR",
 	"NEGATE",
@@ -130,6 +175,7 @@ var tokenTypeNames = [...]string{
 	"SWITCH",
 	"DEFAULT",
 	"AS",
+	"PRINT",
 	"RETURN",
 	"DECLARE",
 	"ASSIGN",

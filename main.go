@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"tkom/lexer"
 )
@@ -15,7 +16,6 @@ func main() {
 func scannerTest() {
 	file := strings.NewReader("int a = 5\n")
 	scanner := lexer.NewScanner(file)
-
 	for {
 		err := scanner.NextRune()
 		if err == io.EOF {
@@ -30,9 +30,16 @@ func scannerTest() {
 }
 
 func lexerTest() {
-	text := "int a = 5\nif a == 6\nwhile" + string(0xFFFF)
-	reader := strings.NewReader(text)
-	lex := lexer.NewLexer(reader)
+	file, err := os.Open("example.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// text := "int a = 5\nif a == 6\nwhile a > c" + string(0xFFFF)
+	// reader := strings.NewReader(text)
+
+	lex := lexer.NewLexer(file)
 	lex.Consume()
 
 	for {
@@ -46,10 +53,10 @@ func lexerTest() {
 			break
 		}
 
+		token.ShowDetails()
 		if token.GetType() == lexer.ETX {
 			fmt.Println("Koniec pliku")
-			break // Koniec pliku
+			break
 		}
-		token.ShowDetails()
 	}
 }

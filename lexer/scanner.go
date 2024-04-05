@@ -29,9 +29,14 @@ func NewScanner(reader io.Reader) *Scanner {
 	}
 }
 
+const EOF rune = -1
+
 func (s *Scanner) NextRune() error {
 	char, _, err := s.Reader.ReadRune()
 	if err != nil {
+		if err == io.EOF {
+			s.Current = EOF
+		}
 		return err
 	}
 	if char == '\n' {

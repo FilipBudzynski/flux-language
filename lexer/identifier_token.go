@@ -13,13 +13,12 @@ type identifierToken struct {
 	Pos  Position
 }
 
-func NewIdentifierToken(pos Position, name string) *identifierToken {
+func NewIdentifierToken(name string) *identifierToken {
 	uid := uuid.New().String()
 	return &identifierToken{
 		Type: IDENTIFIER,
 		Name: name,
 		Id:   uid,
-		Pos:  pos,
 	}
 }
 
@@ -40,4 +39,8 @@ func (i *identifierToken) GetType() TokenTypes {
 
 func (i *identifierToken) GetName() string {
 	return i.Type.GetName()
+}
+
+func (i *identifierToken) SetPosition(position Position) {
+	i.Pos = position
 }

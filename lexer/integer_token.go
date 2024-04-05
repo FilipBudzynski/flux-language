@@ -10,10 +10,9 @@ type intToken struct {
 	Value int
 }
 
-func NewIntToken(pos Position, value int) *intToken {
+func NewIntToken(value int) *intToken {
 	return &intToken{
 		Type:  CONSNT_INT,
-		Pos:   pos,
 		Value: value,
 	}
 }
@@ -35,4 +34,8 @@ func (i *intToken) GetType() TokenTypes {
 
 func (i *intToken) GetName() string {
 	return i.Type.GetName()
+}
+
+func (i *intToken) SetPosition(position Position) {
+	i.Pos = position
 }

@@ -12,7 +12,7 @@ type intToken struct {
 
 func NewIntToken(value int) *intToken {
 	return &intToken{
-		Type:  CONSNT_INT,
+		Type:  CONST_INT,
 		Value: value,
 	}
 }

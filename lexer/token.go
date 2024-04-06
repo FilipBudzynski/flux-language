@@ -90,7 +90,7 @@ const (
 	// identifier
 	IDENTIFIER TokenTypes = iota
 	// data types
-	CONSNT_INT
+	CONST_INT
 	CONST_FLOAT
 	CONST_STRING
 	CONST_BOOL

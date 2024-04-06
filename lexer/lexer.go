@@ -53,7 +53,7 @@ func (l *Lexer) tryMatch() (t Token) {
 		return t
 	}
 
-	t = l.createInt()
+	t = l.createNumber()
 	if t != nil {
 		return t
 	}
@@ -95,7 +95,7 @@ func (l *Lexer) createOperator() Token {
 	return nil
 }
 
-func (l *Lexer) createInt() Token {
+func (l *Lexer) createNumber() Token {
 	if !unicode.IsDigit(l.source.Current) {
 		return nil
 	}
@@ -115,7 +115,22 @@ func (l *Lexer) createInt() Token {
 		l.Consume()
 	}
 
-	return NewIntToken(value)
+	if l.source.Current != '.' {
+		return NewIntToken(value)
+	}
+	l.Consume()
+
+	decimals := 0
+	var decValue int
+	for unicode.IsDigit(l.source.Current) {
+		digit := int(l.source.Current - '0')
+		decValue = decValue*10 + digit
+		decimals += 1
+		l.Consume()
+	}
+
+	floatValue := float64(value) + float64(decValue)/math.Pow(10, float64(decimals))
+	return NewFloatToken(floatValue)
 }
 
 func (l *Lexer) createIdentifier() Token {

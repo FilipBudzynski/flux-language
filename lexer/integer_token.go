@@ -10,10 +10,11 @@ type intToken struct {
 	Value int
 }
 
-func NewIntToken(value int) *intToken {
+func NewIntToken(value int, position Position) *intToken {
 	return &intToken{
 		Type:  CONST_INT,
 		Value: value,
+		Pos:   position,
 	}
 }
 

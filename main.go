@@ -36,10 +36,10 @@ func lexerTest() {
 	}
 	defer file.Close()
 
-	// text := "int a = 5\nif a == 6\nwhile a > c" + string(0xFFFF)
-	// reader := strings.NewReader(text)
+	text := "int a = 5\nif a == 6\nwhile a >c"
+	reader := strings.NewReader(text)
 
-	lex := lexer.NewLexer(file)
+	lex := lexer.NewLexer(reader)
 	lex.Consume()
 
 	for {

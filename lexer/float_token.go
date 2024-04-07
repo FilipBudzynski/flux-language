@@ -10,10 +10,11 @@ type floatToken struct {
 	Value float64
 }
 
-func NewFloatToken(value float64) *floatToken {
+func NewFloatToken(value float64, position Position) *floatToken {
 	return &floatToken{
 		Type:  CONST_FLOAT,
 		Value: value,
+		Pos:   position,
 	}
 }
 

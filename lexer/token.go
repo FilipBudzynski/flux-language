@@ -38,7 +38,7 @@ var DoubleOperators = map[string]TokenTypes{
 	">=": GREATER_OR_EQUAL,
 	"==": EQUALS,
 	"!=": NOT_EQUALS,
-	"->": CASE_ARROW,
+	"=>": CASE_ARROW,
 	":=": DECLARE,
 }
 
@@ -55,9 +55,10 @@ type baseToken struct {
 	Pos  Position
 }
 
-func NewBaseToken(token_type TokenTypes) *baseToken {
+func NewBaseToken(token_type TokenTypes, position Position) *baseToken {
 	return &baseToken{
 		Type: token_type,
+		Pos:  position,
 	}
 }
 

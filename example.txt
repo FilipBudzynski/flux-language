@@ -1,0 +1,12 @@
+sumUp(a,b int) int {
+    return a + b
+}
+
+whatWillGetMe() string {
+    return switch sumUp(2, 3) { 
+        >2 and <=4 => "A pint",
+        5          => "Decent beverage",
+        >5 and <15 => "A NICE bevrage",
+        > 15       => "Whole bottle"
+    }
+}

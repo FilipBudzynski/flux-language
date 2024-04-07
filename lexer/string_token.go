@@ -10,10 +10,11 @@ type stringToken struct {
 	Pos   Position
 }
 
-func NewStringToken(name string) *stringToken {
+func NewStringToken(name string, position Position) *stringToken {
 	return &stringToken{
 		Type:  CONST_STRING,
 		Value: name,
+		Pos:   position,
 	}
 }
 

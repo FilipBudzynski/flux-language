@@ -2,29 +2,25 @@ package lexer
 
 import (
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 type identifierToken struct {
 	Name string
-	Id   string
 	Type TokenTypes
 	Pos  Position
 }
 
-func NewIdentifierToken(name string) *identifierToken {
-	uid := uuid.New().String()
+func NewIdentifierToken(name string, position Position) *identifierToken {
 	return &identifierToken{
 		Type: IDENTIFIER,
 		Name: name,
-		Id:   uid,
+		Pos:  position,
 	}
 }
 
 func (i *identifierToken) IsEqual(token Token) bool {
 	if other, ok := token.(*identifierToken); ok {
-		return i.Type == other.Type && i.Pos == other.Pos && i.Id == other.Id
+		return i.Type == other.Type && i.Pos == other.Pos && i.Name == other.Name
 	}
 	return false
 }

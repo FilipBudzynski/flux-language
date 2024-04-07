@@ -21,44 +21,45 @@ func NewLexer(reader io.Reader) *Lexer {
 
 func (l *Lexer) GetNextToken() (t Token, err error) {
 	l.skipWhiteChar()
-	pos := l.pos
 	t = l.tryMatch()
 	if t != nil {
-		t.SetPosition(pos)
 		return t, nil
 	}
+	// return NewBaseToken(ETX, l.source.Position()), nil
 	return nil, fmt.Errorf("None token match found for the source")
 }
 
 func (l *Lexer) tryMatch() (t Token) {
+	pos := l.pos
+
 	if l.source.Current == EOF {
-		t = NewBaseToken(ETX)
+		t = NewBaseToken(ETX, pos)
 		l.Consume()
 		return t
 	}
 
 	if l.source.Current == '\n' {
-		t = NewBaseToken(EOL)
+		t = NewBaseToken(EOL, pos)
 		l.Consume()
 		return t
 	}
 
-	t = l.createString()
+	t = l.createString(pos)
 	if t != nil {
 		return t
 	}
 
-	t = l.createOperator()
+	t = l.createOperator(pos)
 	if t != nil {
 		return t
 	}
 
-	t = l.createNumber()
+	t = l.createNumber(pos)
 	if t != nil {
 		return t
 	}
 
-	t = l.createIdentifier()
+	t = l.createIdentifier(pos)
 	if t != nil {
 		return t
 	}
@@ -78,30 +79,33 @@ func (l *Lexer) skipWhiteChar() {
 	}
 }
 
-func (l *Lexer) createOperator() Token {
+func (l *Lexer) createOperator(position Position) Token {
 	buff := l.source.Current
+	var char rune
 	if buff == '<' || buff == '>' || buff == '=' || buff == '!' || buff == '-' || buff == ':' {
-		char := l.Consume()
+		char = l.Consume()
 		if token_type, ok := DoubleOperators[string([]rune{buff, char})]; ok {
 			l.Consume()
-			return NewBaseToken(token_type)
+			return NewBaseToken(token_type, position)
 		}
 	}
 	if t_type, ok := SingleChar[buff]; ok {
-		l.Consume()
-		return NewBaseToken(t_type)
+		if char == 0 {
+			l.Consume()
+		}
+		return NewBaseToken(t_type, position)
 	}
 
 	return nil
 }
 
-func (l *Lexer) createNumber() Token {
+func (l *Lexer) createNumber(position Position) Token {
 	if !unicode.IsDigit(l.source.Current) {
 		return nil
 	}
 	if l.source.Current == '0' {
 		l.Consume()
-		return NewIntToken(0)
+		return NewIntToken(0, position)
 	}
 
 	var value int
@@ -116,7 +120,7 @@ func (l *Lexer) createNumber() Token {
 	}
 
 	if l.source.Current != '.' {
-		return NewIntToken(value)
+		return NewIntToken(value, position)
 	}
 	l.Consume()
 
@@ -130,10 +134,10 @@ func (l *Lexer) createNumber() Token {
 	}
 
 	floatValue := float64(value) + float64(decValue)/math.Pow(10, float64(decimals))
-	return NewFloatToken(floatValue)
+	return NewFloatToken(floatValue, position)
 }
 
-func (l *Lexer) createIdentifier() Token {
+func (l *Lexer) createIdentifier(position Position) Token {
 	var identifier []rune
 
 	if !unicode.IsLetter(l.source.Current) {
@@ -154,7 +158,7 @@ func (l *Lexer) createIdentifier() Token {
 	}
 
 	if tokenType, ok := KeyWords[string(identifier)]; ok {
-		return NewBaseToken(tokenType)
+		return NewBaseToken(tokenType, position)
 	}
 
 	if len(string(identifier)) > 64*1024 {
@@ -162,10 +166,10 @@ func (l *Lexer) createIdentifier() Token {
 		return nil
 	}
 
-	return NewIdentifierToken(string(identifier))
+	return NewIdentifierToken(string(identifier), position)
 }
 
-func (l *Lexer) createString() Token {
+func (l *Lexer) createString(position Position) Token {
 	if l.source.Current != '"' {
 		return nil
 	}
@@ -201,5 +205,5 @@ func (l *Lexer) createString() Token {
 	}
 
 	l.Consume()
-	return NewStringToken(strBuilder.String())
+	return NewStringToken(strBuilder.String(), position)
 }

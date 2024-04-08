@@ -41,7 +41,6 @@ func lexerTest() {
 	reader := strings.NewReader(text)
 	source, _ := lexer.NewScanner(reader)
 	lex := lexer.NewLexer(*source)
-	lex.Consume()
 
 	for {
 		token, err := lex.GetNextToken()
@@ -54,7 +53,7 @@ func lexerTest() {
 			break
 		}
 
-		token.ShowDetails()
+		fmt.Printf("%-12v %-2v %-5v\n", token.Type.TypeName(), token.Pos, token.Value)
 
 		if token.GetType() == lexer.ETX {
 			fmt.Println("Koniec pliku")

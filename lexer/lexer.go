@@ -14,7 +14,7 @@ type Lexer struct {
 
 func NewLexer(source Scanner) *Lexer { return &Lexer{source: source} }
 
-func (l *Lexer) GetNextToken() (t Token, err error) {
+func (l *Lexer) GetNextToken() (t *Token, err error) {
 	l.skipWhiteChar()
 	l.pos = l.source.Position()
 	t = l.tryMatch()
@@ -25,15 +25,15 @@ func (l *Lexer) GetNextToken() (t Token, err error) {
 	return nil, fmt.Errorf("None token match found for the source")
 }
 
-func (l *Lexer) tryMatch() (t Token) {
+func (l *Lexer) tryMatch() (t *Token) {
 	pos := l.pos
 
 	if l.source.Current == EOF {
-		return NewBaseToken(ETX, pos)
+		return NewToken(ETX, pos, nil)
 	}
 
 	if l.source.Current == '\n' {
-		t = NewBaseToken(EOL, pos)
+		t = NewToken(EOL, pos, nil)
 		l.Consume()
 		return t
 	}
@@ -78,21 +78,21 @@ func (l *Lexer) skipWhiteChar() {
 	}
 }
 
-func (l *Lexer) createOperator(position Position) Token {
+func (l *Lexer) createOperator(position Position) *Token {
 	buff := l.source.Current
 	if buff == '<' || buff == '>' || buff == '=' || buff == '!' || buff == '-' || buff == ':' {
 		char := l.Consume()
 		if token_type, ok := DoubleOperators[string([]rune{buff, char})]; ok {
 			l.Consume()
-			return NewBaseToken(token_type, position)
+			return NewToken(token_type, position, nil)
 		} else {
 			if t_type, ok := SingleChar[buff]; ok {
-				return NewBaseToken(t_type, position)
+				return NewToken(t_type, position, nil)
 			}
 		}
 	} else if t_type, ok := SingleChar[buff]; ok {
 		l.Consume()
-		return NewBaseToken(t_type, position)
+		return NewToken(t_type, position, nil)
 	}
 
 	return nil
@@ -102,14 +102,14 @@ func (l *Lexer) isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
 }
 
-func (l *Lexer) createNumber(position Position) Token {
+func (l *Lexer) createNumber(position Position) *Token {
 	// TODO: change to one of 0..9
 	if !l.isDigit(l.source.Current) {
 		return nil
 	}
 	if l.source.Current == '0' {
 		l.Consume()
-		return NewIntToken(0, position)
+		return NewToken(CONST_INT, position, 0)
 	}
 
 	var value int
@@ -125,7 +125,7 @@ func (l *Lexer) createNumber(position Position) Token {
 	}
 
 	if l.source.Current != '.' {
-		return NewIntToken(value, position)
+		return NewToken(CONST_INT, position, value)
 	}
 	l.Consume()
 
@@ -144,42 +144,43 @@ func (l *Lexer) createNumber(position Position) Token {
 	}
 
 	floatValue := float64(value) + float64(decValue)/math.Pow(10, float64(decimals))
-	return NewFloatToken(floatValue, position)
+	return NewToken(CONST_FLOAT, position, floatValue)
 }
 
-func (l *Lexer) createIdentifier(position Position) Token {
+func (l *Lexer) createIdentifier(position Position) *Token {
 	// TODO: zamienic na string buildera
-	var identifier []rune
+
+	var strBuilder strings.Builder
 
 	if !unicode.IsLetter(l.source.Current) {
 		fmt.Errorf("error [%d, %d] identifier should start with a letter", l.pos.Line, l.pos.Column)
 		return nil
 	}
 
-	identifier = append(identifier, l.source.Current)
+	strBuilder.WriteRune(l.source.Current)
 	l.Consume()
 
 	for {
 		if unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
-			if len(string(identifier)) > 64*1024 {
+			if strBuilder.Len() > 64*1024 {
 				fmt.Errorf("error [%d, %d] Identifier is too long", l.pos.Line, l.pos.Column)
 				return nil
 			}
-			identifier = append(identifier, l.source.Current)
+			strBuilder.WriteRune(l.source.Current)
 			l.Consume()
 		} else {
 			break
 		}
 	}
 
-	if tokenType, ok := KeyWords[string(identifier)]; ok {
-		return NewBaseToken(tokenType, position)
+	if tokenType, ok := KeyWords[strBuilder.String()]; ok {
+		return NewToken(tokenType, position, nil)
 	}
 
-	return NewIdentifierToken(string(identifier), position)
+	return NewToken(IDENTIFIER, position, strBuilder.String())
 }
 
-func (l *Lexer) createString(position Position) Token {
+func (l *Lexer) createString(position Position) *Token {
 	if l.source.Current != '"' {
 		return nil
 	}
@@ -187,27 +188,7 @@ func (l *Lexer) createString(position Position) Token {
 	var strBuilder strings.Builder
 	l.Consume()
 	for l.source.Current != '"' && l.source.Current != EOF {
-		if l.source.Current == '\\' {
-			l.Consume()
-			if l.source.Current == EOF {
-				// TODO: zgloszenie bledu
-				return nil
-			}
-			switch l.source.Current {
-			case 'n':
-				strBuilder.WriteRune('\n')
-			case 't':
-				strBuilder.WriteRune('\t')
-			case '"':
-				strBuilder.WriteRune('"')
-			case '\\':
-				strBuilder.WriteRune('\\')
-			default:
-				return nil
-			}
-		} else {
-			strBuilder.WriteRune(l.source.Current)
-		}
+		strBuilder.WriteRune(l.source.Current)
 		l.Consume()
 	}
 
@@ -216,5 +197,5 @@ func (l *Lexer) createString(position Position) Token {
 	}
 
 	l.Consume()
-	return NewStringToken(strBuilder.String(), position)
+	return NewToken(CONST_STRING, position, strBuilder.String())
 }

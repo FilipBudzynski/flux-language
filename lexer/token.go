@@ -1,7 +1,5 @@
 package lexer
 
-import "fmt"
-
 var SingleChar = map[rune]TokenTypes{
 	'+': PLUS,
 	'-': MINUS,
@@ -42,55 +40,37 @@ var DoubleOperators = map[string]TokenTypes{
 	":=": DECLARE,
 }
 
-type Token interface {
-	IsEqual(token Token) bool // testy
-	GetType() TokenTypes
-	// GetValue()
+// type Token interface {
+// 	IsEqual(token Token) bool // testy
+// 	GetType() TokenTypes
+// 	// GetValue()
+//
+// 	// osobno od interfejsu
+// 	GetName() string
+//
+// 	// pozbyc sie show details
+// 	ShowDetails()
+//
+// 	// powinno wyleciec set position
+// 	SetPosition(Position)
+// }
 
-	// osobno od interfejsu
-	GetName() string
-
-	// pozbyc sie show details
-	ShowDetails()
-
-	// powinno wyleciec set position
-	SetPosition(Position)
+type Token struct {
+	Type  TokenTypes
+	Pos   Position
+	Value any
 }
 
-type baseToken struct {
-	Type TokenTypes
-	Pos  Position
-	// Value any
-}
-
-func NewBaseToken(token_type TokenTypes, position Position) *baseToken {
-	return &baseToken{
-		Type: token_type,
-		Pos:  position,
+func NewToken(token_type TokenTypes, position Position, value any) *Token {
+	return &Token{
+		Type:  token_type,
+		Pos:   position,
+		Value: value,
 	}
 }
 
-func (b *baseToken) IsEqual(token Token) bool {
-	if other, ok := token.(*baseToken); ok {
-		return b.Type == other.Type && b.Pos == other.Pos
-	}
-	return false
-}
-
-func (b *baseToken) ShowDetails() {
-	fmt.Printf("%v, %v\n", b.Pos, b.Type.GetName())
-}
-
-func (b *baseToken) GetType() TokenTypes {
+func (b *Token) GetType() TokenTypes {
 	return b.Type
-}
-
-func (b *baseToken) GetName() string {
-	return b.Type.GetName()
-}
-
-func (b *baseToken) SetPosition(position Position) {
-	b.Pos = position
 }
 
 type TokenTypes int
@@ -204,7 +184,7 @@ var tokenTypeNames = [...]string{
 	"UNDEFINED",
 }
 
-func (t TokenTypes) GetName() string {
+func (t TokenTypes) TypeName() string {
 	if t < 0 || int(t) >= len(tokenTypeNames) {
 		return "UNKNOWN"
 	}

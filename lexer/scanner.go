@@ -21,30 +21,42 @@ type Scanner struct {
 	CharCount int
 }
 
-func NewScanner(reader io.Reader) *Scanner {
-	return &Scanner{
+func NewScanner(reader io.Reader) (*Scanner, error) {
+	scanner := &Scanner{
 		Reader:    bufio.NewReader(reader),
 		LineCount: 1,
 		CharCount: 0,
 	}
+
+	err := scanner.NextRune()
+	if err != nil {
+		return nil, err
+	}
+
+	return scanner, nil
 }
 
 const EOF rune = -1
 
-func (s *Scanner) NextRune() error {
+func (s *Scanner) NextRune() (err error) {
+	if s.Current == '\n' {
+		s.LineCount++
+		s.CharCount = 0
+	}
+
+	if s.Current == EOF {
+		return io.EOF
+	}
+
 	char, _, err := s.Reader.ReadRune()
 	if err != nil {
 		if err == io.EOF {
-			s.Current = EOF
+			char = EOF
+		} else {
+			return err
 		}
-		return err
 	}
-	if char == '\n' {
-		s.LineCount++
-		s.CharCount = 0
-	} else {
-		s.CharCount++
-	}
+	s.CharCount++
 	s.Current = char
 	return nil
 }

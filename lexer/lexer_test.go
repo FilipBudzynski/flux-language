@@ -51,8 +51,10 @@ func TestSingleTokens(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			lexer := NewLexer(strings.NewReader(tc.input))
-			lexer.Consume()
+			reader := strings.NewReader(tc.input)
+			source, _ := NewScanner(reader)
+			lexer := NewLexer(*source)
+
 			token, err := lexer.GetNextToken()
 			if err != nil {
 				t.Fatalf("Error while getting token: %v", err)
@@ -77,25 +79,25 @@ func TestLexer(t *testing.T) {
 				NewIdentifierToken("a", NewPosition(1, 5)),
 				NewBaseToken(ASSIGN, NewPosition(1, 7)),
 				NewIntToken(5, NewPosition(1, 9)),
-				NewBaseToken(EOL, NewPosition(2, 0)),
+				NewBaseToken(EOL, NewPosition(1, 10)),
 				NewBaseToken(IF, NewPosition(2, 1)),
 				NewIdentifierToken("a", NewPosition(2, 4)),
 				NewBaseToken(EQUALS, NewPosition(2, 6)),
 				NewIntToken(6, NewPosition(2, 9)),
-				NewBaseToken(EOL, NewPosition(3, 0)),
+				NewBaseToken(EOL, NewPosition(2, 10)),
 				NewBaseToken(WHILE, NewPosition(3, 1)),
 				NewIdentifierToken("a", NewPosition(3, 7)),
 				NewBaseToken(GREATER_THAN, NewPosition(3, 9)),
 				NewIdentifierToken("c", NewPosition(3, 10)),
-				NewBaseToken(ETX, NewPosition(3, 10)),
+				NewBaseToken(ETX, NewPosition(3, 11)),
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		reader := strings.NewReader(tc.input)
-		lexer := NewLexer(reader)
-		lexer.Consume()
+		source, _ := NewScanner(reader)
+		lexer := NewLexer(*source)
 
 		var tokens []Token
 		for {

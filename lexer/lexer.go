@@ -2,7 +2,6 @@ package lexer
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"strings"
 	"unicode"
@@ -13,19 +12,16 @@ type Lexer struct {
 	pos    Position
 }
 
-func NewLexer(reader io.Reader) *Lexer {
-	return &Lexer{
-		source: *NewScanner(reader),
-	}
-}
+func NewLexer(source Scanner) *Lexer { return &Lexer{source: source} }
 
 func (l *Lexer) GetNextToken() (t Token, err error) {
 	l.skipWhiteChar()
+	l.pos = l.source.Position()
 	t = l.tryMatch()
 	if t != nil {
 		return t, nil
 	}
-	// return NewBaseToken(ETX, l.source.Position()), nil
+
 	return nil, fmt.Errorf("None token match found for the source")
 }
 
@@ -33,9 +29,7 @@ func (l *Lexer) tryMatch() (t Token) {
 	pos := l.pos
 
 	if l.source.Current == EOF {
-		t = NewBaseToken(ETX, pos)
-		l.Consume()
-		return t
+		return NewBaseToken(ETX, pos)
 	}
 
 	if l.source.Current == '\n' {
@@ -44,10 +38,15 @@ func (l *Lexer) tryMatch() (t Token) {
 		return t
 	}
 
+	// TODO: dodac bledy
 	t = l.createString(pos)
 	if t != nil {
 		return t
 	}
+
+	// err != nil{
+	//   fsdjakfklas (er)
+	// }
 
 	t = l.createOperator(pos)
 	if t != nil {
@@ -81,26 +80,31 @@ func (l *Lexer) skipWhiteChar() {
 
 func (l *Lexer) createOperator(position Position) Token {
 	buff := l.source.Current
-	var char rune
 	if buff == '<' || buff == '>' || buff == '=' || buff == '!' || buff == '-' || buff == ':' {
-		char = l.Consume()
+		char := l.Consume()
 		if token_type, ok := DoubleOperators[string([]rune{buff, char})]; ok {
 			l.Consume()
 			return NewBaseToken(token_type, position)
+		} else {
+			if t_type, ok := SingleChar[buff]; ok {
+				return NewBaseToken(t_type, position)
+			}
 		}
-	}
-	if t_type, ok := SingleChar[buff]; ok {
-		if char == 0 {
-			l.Consume()
-		}
+	} else if t_type, ok := SingleChar[buff]; ok {
+		l.Consume()
 		return NewBaseToken(t_type, position)
 	}
 
 	return nil
 }
 
+func (l *Lexer) isDigit(r rune) bool {
+	return r >= '0' && r <= '9'
+}
+
 func (l *Lexer) createNumber(position Position) Token {
-	if !unicode.IsDigit(l.source.Current) {
+	// TODO: change to one of 0..9
+	if !l.isDigit(l.source.Current) {
 		return nil
 	}
 	if l.source.Current == '0' {
@@ -109,11 +113,12 @@ func (l *Lexer) createNumber(position Position) Token {
 	}
 
 	var value int
-	for unicode.IsDigit(l.source.Current) {
+	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
 		if value > (math.MaxInt-digit)/10 {
+			// TODO: zglosic error
 			fmt.Errorf("Error [%d, %d], Int value limit Exceeded", l.pos.Line, l.pos.Column)
-			return nil
+			return nil //, err
 		}
 		value = value*10 + digit
 		l.Consume()
@@ -126,8 +131,13 @@ func (l *Lexer) createNumber(position Position) Token {
 
 	decimals := 0
 	var decValue int
-	for unicode.IsDigit(l.source.Current) {
+	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
+		if decValue > (math.MaxInt-digit)/10 {
+			// TODO: zglosic error
+			fmt.Errorf("Error [%d, %d], Int value limit Exceeded", l.pos.Line, l.pos.Column)
+			return nil //, err
+		}
 		decValue = decValue*10 + digit
 		decimals += 1
 		l.Consume()
@@ -138,6 +148,7 @@ func (l *Lexer) createNumber(position Position) Token {
 }
 
 func (l *Lexer) createIdentifier(position Position) Token {
+	// TODO: zamienic na string buildera
 	var identifier []rune
 
 	if !unicode.IsLetter(l.source.Current) {
@@ -150,6 +161,10 @@ func (l *Lexer) createIdentifier(position Position) Token {
 
 	for {
 		if unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
+			if len(string(identifier)) > 64*1024 {
+				fmt.Errorf("error [%d, %d] Identifier is too long", l.pos.Line, l.pos.Column)
+				return nil
+			}
 			identifier = append(identifier, l.source.Current)
 			l.Consume()
 		} else {
@@ -159,11 +174,6 @@ func (l *Lexer) createIdentifier(position Position) Token {
 
 	if tokenType, ok := KeyWords[string(identifier)]; ok {
 		return NewBaseToken(tokenType, position)
-	}
-
-	if len(string(identifier)) > 64*1024 {
-		fmt.Errorf("error [%d, %d] Identifier is too long", l.pos.Line, l.pos.Column)
-		return nil
 	}
 
 	return NewIdentifierToken(string(identifier), position)
@@ -180,6 +190,7 @@ func (l *Lexer) createString(position Position) Token {
 		if l.source.Current == '\\' {
 			l.Consume()
 			if l.source.Current == EOF {
+				// TODO: zgloszenie bledu
 				return nil
 			}
 			switch l.source.Current {

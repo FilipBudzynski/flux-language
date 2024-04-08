@@ -43,16 +43,24 @@ var DoubleOperators = map[string]TokenTypes{
 }
 
 type Token interface {
-	IsEqual(token Token) bool
+	IsEqual(token Token) bool // testy
 	GetType() TokenTypes
+	// GetValue()
+
+	// osobno od interfejsu
 	GetName() string
+
+	// pozbyc sie show details
 	ShowDetails()
+
+	// powinno wyleciec set position
 	SetPosition(Position)
 }
 
 type baseToken struct {
 	Type TokenTypes
 	Pos  Position
+	// Value any
 }
 
 func NewBaseToken(token_type TokenTypes, position Position) *baseToken {

@@ -15,7 +15,7 @@ func main() {
 
 func scannerTest() {
 	file := strings.NewReader("int a = 5\n")
-	scanner := lexer.NewScanner(file)
+	scanner, _ := lexer.NewScanner(file)
 	for {
 		err := scanner.NextRune()
 		if err == io.EOF {
@@ -30,6 +30,7 @@ func scannerTest() {
 }
 
 func lexerTest() {
+	// sprawdzic zeby file byl zamykany przy bledach
 	file, err := os.Open("example.txt")
 	if err != nil {
 		panic(err)
@@ -38,8 +39,8 @@ func lexerTest() {
 
 	text := "int a = 5\nif a == 6\nwhile a >c"
 	reader := strings.NewReader(text)
-
-	lex := lexer.NewLexer(reader)
+	source, _ := lexer.NewScanner(reader)
+	lex := lexer.NewLexer(*source)
 	lex.Consume()
 
 	for {
@@ -54,6 +55,7 @@ func lexerTest() {
 		}
 
 		token.ShowDetails()
+
 		if token.GetType() == lexer.ETX {
 			fmt.Println("Koniec pliku")
 			break

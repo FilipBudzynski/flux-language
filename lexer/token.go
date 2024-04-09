@@ -29,6 +29,8 @@ var KeyWords = map[string]TokenTypes{
 	"print":   PRINT,
 	"and":     AND,
 	"or":      OR,
+	"true":    CONST_BOOL,
+	"false":   CONST_BOOL,
 }
 
 var DoubleOperators = map[string]TokenTypes{
@@ -39,21 +41,6 @@ var DoubleOperators = map[string]TokenTypes{
 	"=>": CASE_ARROW,
 	":=": DECLARE,
 }
-
-// type Token interface {
-// 	IsEqual(token Token) bool // testy
-// 	GetType() TokenTypes
-// 	// GetValue()
-//
-// 	// osobno od interfejsu
-// 	GetName() string
-//
-// 	// pozbyc sie show details
-// 	ShowDetails()
-//
-// 	// powinno wyleciec set position
-// 	SetPosition(Position)
-// }
 
 type Token struct {
 	Type  TokenTypes
@@ -132,6 +119,7 @@ const (
 	STX
 	ETX
 	EOL
+	COMMENT
 	UNDEFINED
 )
 
@@ -181,6 +169,7 @@ var tokenTypeNames = [...]string{
 	"STX",
 	"ETX",
 	"EOL",
+	"COMMENT",
 	"UNDEFINED",
 }
 

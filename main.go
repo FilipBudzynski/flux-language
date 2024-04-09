@@ -37,10 +37,10 @@ func lexerTest() {
 	}
 	defer file.Close()
 
-	text := "int a = 5\nif a == 6\nwhile a >c"
-	reader := strings.NewReader(text)
-	source, _ := lexer.NewScanner(reader)
-	lex := lexer.NewLexer(*source)
+	// text := "int a = 5\nif a == 6\nwhile a >c"
+	// reader := strings.NewReader(text)
+	source, _ := lexer.NewScanner(file)
+	lex := lexer.NewLexer(source)
 
 	for {
 		token, err := lex.GetNextToken()
@@ -53,7 +53,7 @@ func lexerTest() {
 			break
 		}
 
-		fmt.Printf("%-12v %-2v %-5v\n", token.Type.TypeName(), token.Pos, token.Value)
+		fmt.Printf("%-2v %-12v %-5v\n", token.Pos, token.Type.TypeName(), token.Value)
 
 		if token.GetType() == lexer.ETX {
 			fmt.Println("Koniec pliku")

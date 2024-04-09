@@ -8,62 +8,64 @@ import (
 )
 
 type Lexer struct {
-	source Scanner
+	source *Scanner
 	pos    Position
 }
 
-func NewLexer(source Scanner) *Lexer { return &Lexer{source: source} }
+func NewLexer(source *Scanner) *Lexer {
+	l := &Lexer{source: source}
+	l.pos = l.source.Position()
+	return l
+}
 
 func (l *Lexer) GetNextToken() (t *Token, err error) {
 	l.skipWhiteChar()
-	l.pos = l.source.Position()
-	t = l.tryMatch()
+	pos := l.pos
+
+	if l.source.Current == EOF {
+		return NewToken(ETX, pos, nil), nil
+	}
+
+	if l.source.Current == '\n' {
+		l.Consume()
+		return NewToken(EOL, pos, nil), nil
+	}
+
+	t = l.createComment(pos)
 	if t != nil {
 		return t, nil
 	}
 
-	return nil, fmt.Errorf("None token match found for the source")
-}
-
-func (l *Lexer) tryMatch() (t *Token) {
-	pos := l.pos
-
-	if l.source.Current == EOF {
-		return NewToken(ETX, pos, nil)
+	t, err = l.createString(pos)
+	if err != nil {
+		return nil, err
 	}
-
-	if l.source.Current == '\n' {
-		t = NewToken(EOL, pos, nil)
-		l.Consume()
-		return t
-	}
-
-	// TODO: dodac bledy
-	t = l.createString(pos)
 	if t != nil {
-		return t
+		return t, nil
 	}
-
-	// err != nil{
-	//   fsdjakfklas (er)
-	// }
 
 	t = l.createOperator(pos)
 	if t != nil {
-		return t
+		return t, nil
 	}
 
-	t = l.createNumber(pos)
+	t, err = l.createNumber(pos)
+	if err != nil {
+		return nil, err
+	}
 	if t != nil {
-		return t
+		return t, nil
 	}
 
-	t = l.createIdentifier(pos)
+	t, err = l.createIdentifier(pos)
+	if err != nil {
+		return nil, err
+	}
 	if t != nil {
-		return t
+		return t, nil
 	}
 
-	return nil
+	return nil, fmt.Errorf("none token match found for the source")
 }
 
 func (l *Lexer) Consume() rune {
@@ -76,6 +78,18 @@ func (l *Lexer) skipWhiteChar() {
 	for unicode.IsSpace(l.source.Current) && l.source.Current != '\n' {
 		l.Consume()
 	}
+}
+
+func (l *Lexer) createComment(position Position) *Token {
+	if l.source.Current != '#' {
+		return nil
+	}
+
+	for l.source.Current != '\n' && l.source.Current != EOF {
+		l.Consume()
+	}
+
+	return NewToken(COMMENT, position, nil)
 }
 
 func (l *Lexer) createOperator(position Position) *Token {
@@ -94,7 +108,6 @@ func (l *Lexer) createOperator(position Position) *Token {
 		l.Consume()
 		return NewToken(t_type, position, nil)
 	}
-
 	return nil
 }
 
@@ -102,30 +115,27 @@ func (l *Lexer) isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
 }
 
-func (l *Lexer) createNumber(position Position) *Token {
-	// TODO: change to one of 0..9
+func (l *Lexer) createNumber(position Position) (*Token, error) {
 	if !l.isDigit(l.source.Current) {
-		return nil
+		return nil, nil
 	}
 	if l.source.Current == '0' {
 		l.Consume()
-		return NewToken(CONST_INT, position, 0)
+		return NewToken(CONST_INT, position, 0), nil
 	}
 
 	var value int
 	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
-		if value > (math.MaxInt-digit)/10 {
-			// TODO: zglosic error
-			fmt.Errorf("Error [%d, %d], Int value limit Exceeded", l.pos.Line, l.pos.Column)
-			return nil //, err
+		if value >= (math.MaxInt-digit)/10 {
+			return nil, fmt.Errorf("error [%d, %d], Int value limit Exceeded", position.Line, position.Column)
 		}
 		value = value*10 + digit
 		l.Consume()
 	}
 
 	if l.source.Current != '.' {
-		return NewToken(CONST_INT, position, value)
+		return NewToken(CONST_INT, position, value), nil
 	}
 	l.Consume()
 
@@ -133,10 +143,8 @@ func (l *Lexer) createNumber(position Position) *Token {
 	var decValue int
 	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
-		if decValue > (math.MaxInt-digit)/10 {
-			// TODO: zglosic error
-			fmt.Errorf("Error [%d, %d], Int value limit Exceeded", l.pos.Line, l.pos.Column)
-			return nil //, err
+		if decValue >= (math.MaxInt-digit)/10 {
+			return nil, fmt.Errorf("error [%d, %d], decimal value limit Exceeded", l.pos.Line, l.pos.Column)
 		}
 		decValue = decValue*10 + digit
 		decimals += 1
@@ -144,58 +152,60 @@ func (l *Lexer) createNumber(position Position) *Token {
 	}
 
 	floatValue := float64(value) + float64(decValue)/math.Pow(10, float64(decimals))
-	return NewToken(CONST_FLOAT, position, floatValue)
+	return NewToken(CONST_FLOAT, position, floatValue), nil
 }
 
-func (l *Lexer) createIdentifier(position Position) *Token {
-	// TODO: zamienic na string buildera
-
+func (l *Lexer) createIdentifier(position Position) (*Token, error) {
 	var strBuilder strings.Builder
 
 	if !unicode.IsLetter(l.source.Current) {
-		fmt.Errorf("error [%d, %d] identifier should start with a letter", l.pos.Line, l.pos.Column)
-		return nil
+		return nil, nil
 	}
 
 	strBuilder.WriteRune(l.source.Current)
 	l.Consume()
 
-	for {
-		if unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
-			if strBuilder.Len() > 64*1024 {
-				fmt.Errorf("error [%d, %d] Identifier is too long", l.pos.Line, l.pos.Column)
-				return nil
-			}
-			strBuilder.WriteRune(l.source.Current)
-			l.Consume()
-		} else {
-			break
+	for unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
+		if strBuilder.Len() >= 64*1024 {
+			return nil, fmt.Errorf("error [%d, %d] Identifier capacity exceeded", l.pos.Line, l.pos.Column)
 		}
+		strBuilder.WriteRune(l.source.Current)
+		l.Consume()
 	}
 
 	if tokenType, ok := KeyWords[strBuilder.String()]; ok {
-		return NewToken(tokenType, position, nil)
+		if tokenType == CONST_BOOL {
+			if strBuilder.String() == "true" {
+				return NewToken(CONST_BOOL, position, true), nil
+			} else {
+				return NewToken(CONST_BOOL, position, false), nil
+			}
+		}
+		return NewToken(tokenType, position, nil), nil
 	}
 
-	return NewToken(IDENTIFIER, position, strBuilder.String())
+	return NewToken(IDENTIFIER, position, strBuilder.String()), nil
 }
 
-func (l *Lexer) createString(position Position) *Token {
+func (l *Lexer) createString(position Position) (*Token, error) {
 	if l.source.Current != '"' {
-		return nil
+		return nil, nil
 	}
 
 	var strBuilder strings.Builder
 	l.Consume()
 	for l.source.Current != '"' && l.source.Current != EOF {
+		if strBuilder.Len() >= 64*1024 {
+			return nil, fmt.Errorf("error [%d, %d] Identifier capacity exceeded", l.pos.Line, l.pos.Column)
+		}
 		strBuilder.WriteRune(l.source.Current)
 		l.Consume()
 	}
 
 	if l.source.Current != '"' {
-		return nil
+		return nil, fmt.Errorf("error [%d, %d] String not closed, perhaps you forgot \"", l.pos.Line, l.pos.Column)
 	}
 
 	l.Consume()
-	return NewToken(CONST_STRING, position, strBuilder.String())
+	return NewToken(CONST_STRING, position, strBuilder.String()), nil
 }

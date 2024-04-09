@@ -1,6 +1,9 @@
 package lexer
 
 import (
+	"errors"
+	"fmt"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -15,37 +18,52 @@ func TestSingleTokens(t *testing.T) {
 		{
 			name:   "identifierToken",
 			input:  "myInt",
-			expect: NewToken(IDENTIFIER, NewPosition(1, 1), "myInt"), // NewIdentifierToken("myInt", NewPosition(1, 1)),
+			expect: NewToken(IDENTIFIER, NewPosition(1, 1), "myInt"),
 		},
 		{
 			name:   "StringToken",
 			input:  "\"String token test\"",
-			expect: NewToken(CONST_STRING, NewPosition(1, 1), "String token test"), // NewStringToken("String token test", NewPosition(1, 1)),
+			expect: NewToken(CONST_STRING, NewPosition(1, 1), "String token test"),
 		},
 		{
 			name:   "ConstIntToken",
 			input:  "123",
-			expect: NewToken(CONST_INT, NewPosition(1, 1), 123), // NewIntToken(123, NewPosition(1, 1)),
+			expect: NewToken(CONST_INT, NewPosition(1, 1), 123),
 		},
 		{
 			name:   "ConstFloatToken",
 			input:  "123.456",
-			expect: NewToken(CONST_FLOAT, NewPosition(1, 1), 123.456), // NewFloatToken(123.456, NewPosition(1, 1)),
+			expect: NewToken(CONST_FLOAT, NewPosition(1, 1), 123.456),
 		},
 		{
 			name:   "OperatorToken",
 			input:  ">=",
-			expect: NewToken(GREATER_OR_EQUAL, NewPosition(1, 1), nil), // NewBaseToken(GREATER_OR_EQUAL, NewPosition(1, 1)),
+			expect: NewToken(GREATER_OR_EQUAL, NewPosition(1, 1), nil),
 		},
 		{
 			name:   "OperatorToken",
 			input:  "=>",
-			expect: NewToken(CASE_ARROW, NewPosition(1, 1), nil), // NewBaseToken(CASE_ARROW, NewPosition(1, 1)),
+			expect: NewToken(CASE_ARROW, NewPosition(1, 1), nil),
 		},
 		{
 			name:   "KeyWordToken",
 			input:  "return",
-			expect: NewToken(RETURN, NewPosition(1, 1), nil), // NewBaseToken(RETURN, NewPosition(1, 1)),
+			expect: NewToken(RETURN, NewPosition(1, 1), nil),
+		},
+		{
+			name:   "CommentToken",
+			input:  "# This is just a comment",
+			expect: NewToken(COMMENT, NewPosition(1, 1), nil),
+		},
+		{
+			name:   "ConstBoolTokenFalse",
+			input:  "false",
+			expect: NewToken(CONST_BOOL, NewPosition(1, 1), false),
+		},
+		{
+			name:   "ConstBoolTokenTrue",
+			input:  "true",
+			expect: NewToken(CONST_BOOL, NewPosition(1, 1), true),
 		},
 	}
 
@@ -53,7 +71,7 @@ func TestSingleTokens(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := strings.NewReader(tc.input)
 			source, _ := NewScanner(reader)
-			lexer := NewLexer(*source)
+			lexer := NewLexer(source)
 
 			token, err := lexer.GetNextToken()
 			if err != nil {
@@ -67,30 +85,13 @@ func TestSingleTokens(t *testing.T) {
 	}
 }
 
-func TestLexer(t *testing.T) {
+func TestLexerCodeExample(t *testing.T) {
 	testCases := []struct {
 		input  string
 		tokens []*Token
 	}{
 		{
 			input: "int a = 5\nif a == 6\nwhile a >c",
-			/*tokens: []Token{
-				NewBaseToken(INT, NewPosition(1, 1)),
-				NewIdentifierToken("a", NewPosition(1, 5)),
-				NewBaseToken(ASSIGN, NewPosition(1, 7)),
-				NewIntToken(5, NewPosition(1, 9)),
-				NewBaseToken(EOL, NewPosition(1, 10)),
-				NewBaseToken(IF, NewPosition(2, 1)),
-				NewIdentifierToken("a", NewPosition(2, 4)),
-				NewBaseToken(EQUALS, NewPosition(2, 6)),
-				NewIntToken(6, NewPosition(2, 9)),
-				NewBaseToken(EOL, NewPosition(2, 10)),
-				NewBaseToken(WHILE, NewPosition(3, 1)),
-				NewIdentifierToken("a", NewPosition(3, 7)),
-				NewBaseToken(GREATER_THAN, NewPosition(3, 9)),
-				NewIdentifierToken("c", NewPosition(3, 10)),
-				NewBaseToken(ETX, NewPosition(3, 11)),
-			},*/
 			tokens: []*Token{
 				NewToken(INT, NewPosition(1, 1), nil),
 				NewToken(IDENTIFIER, NewPosition(1, 5), "a"),
@@ -114,7 +115,7 @@ func TestLexer(t *testing.T) {
 	for _, tc := range testCases {
 		reader := strings.NewReader(tc.input)
 		source, _ := NewScanner(reader)
-		lexer := NewLexer(*source)
+		lexer := NewLexer(source)
 
 		var tokens []*Token
 		for {
@@ -131,5 +132,38 @@ func TestLexer(t *testing.T) {
 		if !reflect.DeepEqual(tokens, tc.tokens) {
 			t.Errorf("Input: %s\nExpected: %+v\nGot: %+v\n", tc.input, tc.tokens, tokens)
 		}
+	}
+}
+
+func TestStringNotClosed(t *testing.T) {
+	input := `"unclosed string`
+	expectedErrorMessage := "error [1, 17] String not closed, perhaps you forgot \""
+
+	reader := strings.NewReader(input)
+	scanner, _ := NewScanner(reader)
+	lexer := NewLexer(scanner)
+
+	_, err := lexer.GetNextToken()
+
+	if err == nil || err.Error() != expectedErrorMessage {
+		t.Errorf("Expected error: %s, but got: %v", expectedErrorMessage, err)
+	}
+}
+
+func TestIntValueLimitExceeded(t *testing.T) {
+	input := fmt.Sprintf("int a := %d0", math.MaxInt)
+	expectedError := errors.New("error [1, 10], Int value limit Exceeded")
+
+	reader := strings.NewReader(input)
+	scanner, _ := NewScanner(reader)
+	lexer := NewLexer(scanner)
+
+	var err error
+	for err == nil {
+		_, err = lexer.GetNextToken()
+	}
+
+	if err.Error() != expectedError.Error() {
+		t.Errorf("Expected error: %v, but got: %v", expectedError, err)
 	}
 }

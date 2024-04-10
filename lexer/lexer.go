@@ -100,11 +100,11 @@ func (l *Lexer) createOperator(position Position) *Token {
 			l.Consume()
 			return NewToken(token_type, position, nil)
 		} else {
-			if t_type, ok := SingleChar[buff]; ok {
+			if t_type, ok := Operators[buff]; ok {
 				return NewToken(t_type, position, nil)
 			}
 		}
-	} else if t_type, ok := SingleChar[buff]; ok {
+	} else if t_type, ok := Operators[buff]; ok {
 		l.Consume()
 		return NewToken(t_type, position, nil)
 	}
@@ -191,14 +191,29 @@ func (l *Lexer) createString(position Position) (*Token, error) {
 	if l.source.Current != '"' {
 		return nil, nil
 	}
-
 	var strBuilder strings.Builder
 	l.Consume()
 	for l.source.Current != '"' && l.source.Current != EOF {
 		if strBuilder.Len() >= 64*1024 {
 			return nil, fmt.Errorf("error [%d, %d] Identifier capacity exceeded", l.pos.Line, l.pos.Column)
 		}
-		strBuilder.WriteRune(l.source.Current)
+		if l.source.Current == '\\' {
+			l.Consume()
+			switch l.source.Current {
+			case 'n':
+				strBuilder.WriteRune('\n')
+			case 't':
+				strBuilder.WriteRune('\t')
+			case '"':
+				strBuilder.WriteRune('"')
+			case '\\':
+				strBuilder.WriteRune('\\')
+			default:
+				return nil, fmt.Errorf("error [%d, %d] Invalid syntax escaping", l.pos.Line, l.pos.Column)
+			}
+		} else {
+			strBuilder.WriteRune(l.source.Current)
+		}
 		l.Consume()
 	}
 

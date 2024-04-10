@@ -69,15 +69,22 @@ func TestScanner(t *testing.T) {
 func TestScannerMultipleEOF(t *testing.T) {
 	input := ""
 	expectedRunes := []rune{EOF, EOF, EOF, EOF, EOF}
+	expectedPos := []Position{{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}
 
 	scanner, _ := NewScanner(strings.NewReader(input))
 
 	for i, expectedRune := range expectedRunes {
 		_ = scanner.NextRune()
+		actualPos := scanner.Position()
 
 		actualRune := scanner.Character()
 		if actualRune != expectedRune {
 			t.Errorf("Expected rune %q at position %d, got %q", expectedRune, i, actualRune)
+		}
+
+		pos := scanner.Position()
+		if pos != expectedPos[i] || pos != actualPos {
+			t.Errorf("Expected position %v at position %d, got %v", expectedPos[i], i, pos)
 		}
 	}
 }

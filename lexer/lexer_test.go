@@ -65,6 +65,11 @@ func TestSingleTokens(t *testing.T) {
 			input:  "true",
 			expect: NewToken(CONST_BOOL, NewPosition(1, 1), true),
 		},
+		{
+			name:   "DivideToken",
+			input:  "/",
+			expect: NewToken(DIVIDE, NewPosition(1, 1), nil),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -165,5 +170,43 @@ func TestIntValueLimitExceeded(t *testing.T) {
 
 	if err.Error() != expectedError.Error() {
 		t.Errorf("Expected error: %v, but got: %v", expectedError, err)
+	}
+}
+
+func TestLexerStringTokenEscaping(t *testing.T) {
+	input := `"Hello\nWorld\t!\"\\"`
+	expected := "Hello\nWorld\t!\"\\"
+
+	source, _ := NewScanner(strings.NewReader(input))
+	lexer := NewLexer(source)
+
+	token, err := lexer.GetNextToken()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if token.Type != CONST_STRING {
+		t.Errorf("Expected CONST_STRING token type, got %v", token.Type)
+	}
+
+	if token.Value != expected {
+		t.Errorf("Expected token value: %s, got: %s", expected, token.Value)
+	}
+}
+
+func TestLexerInvalidStringTokenEscaping(t *testing.T) {
+	input := `"Hello\nWorld\!\"\\"`
+
+	source, _ := NewScanner(strings.NewReader(input))
+	lexer := NewLexer(source)
+
+	_, err := lexer.GetNextToken()
+	if err == nil {
+		t.Error("Expected error for invalid escaping, got nil")
+	} else {
+		expectedErrorMsg := "error [1, 15] Invalid syntax escaping"
+		if err.Error() != expectedErrorMsg {
+			t.Errorf("Expected error message: %s, got: %s", expectedErrorMsg, err.Error())
+		}
 	}
 }

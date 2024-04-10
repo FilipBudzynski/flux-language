@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"fmt"
 	"math"
 	"strings"
 	"unicode"
@@ -65,7 +64,7 @@ func (l *Lexer) GetNextToken() (t *Token, err error) {
 		return t, nil
 	}
 
-	return nil, fmt.Errorf("none token match found for the source")
+	return nil, NewLexerError(NONE_TOKEN_MATCH, l.pos)
 }
 
 func (l *Lexer) Consume() rune {
@@ -128,7 +127,7 @@ func (l *Lexer) createNumber(position Position) (*Token, error) {
 	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
 		if value >= (math.MaxInt-digit)/10 {
-			return nil, fmt.Errorf("error [%d, %d], Int value limit Exceeded", position.Line, position.Column)
+			return nil, NewLexerError(INT_CAPACITY_EXCEEDED, position)
 		}
 		value = value*10 + digit
 		l.Consume()
@@ -144,7 +143,7 @@ func (l *Lexer) createNumber(position Position) (*Token, error) {
 	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
 		if decValue >= (math.MaxInt-digit)/10 {
-			return nil, fmt.Errorf("error [%d, %d], decimal value limit Exceeded", l.pos.Line, l.pos.Column)
+			return nil, NewLexerError(FLOAT_CAPACITY_EXCEEDED, l.pos)
 		}
 		decValue = decValue*10 + digit
 		decimals += 1
@@ -167,7 +166,7 @@ func (l *Lexer) createIdentifier(position Position) (*Token, error) {
 
 	for unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
 		if strBuilder.Len() >= 64*1024 {
-			return nil, fmt.Errorf("error [%d, %d] Identifier capacity exceeded", l.pos.Line, l.pos.Column)
+			return nil, NewLexerError(IDENTIFIER_CAPACITY_EXCEEDED, l.pos)
 		}
 		strBuilder.WriteRune(l.source.Current)
 		l.Consume()
@@ -195,7 +194,7 @@ func (l *Lexer) createString(position Position) (*Token, error) {
 	l.Consume()
 	for l.source.Current != '"' && l.source.Current != EOF {
 		if strBuilder.Len() >= 64*1024 {
-			return nil, fmt.Errorf("error [%d, %d] Identifier capacity exceeded", l.pos.Line, l.pos.Column)
+			return nil, NewLexerError(STRING_CAPACITY_EXCEEDED, l.pos)
 		}
 		if l.source.Current == '\\' {
 			l.Consume()
@@ -209,7 +208,7 @@ func (l *Lexer) createString(position Position) (*Token, error) {
 			case '\\':
 				strBuilder.WriteRune('\\')
 			default:
-				return nil, fmt.Errorf("error [%d, %d] Invalid syntax escaping", l.pos.Line, l.pos.Column)
+				return nil, NewLexerError(INVALID_ESCAPING, l.pos)
 			}
 		} else {
 			strBuilder.WriteRune(l.source.Current)
@@ -218,7 +217,7 @@ func (l *Lexer) createString(position Position) (*Token, error) {
 	}
 
 	if l.source.Current != '"' {
-		return nil, fmt.Errorf("error [%d, %d] String not closed, perhaps you forgot \"", l.pos.Line, l.pos.Column)
+		return nil, NewLexerError(STRING_NOT_CLOSED, l.pos)
 	}
 
 	l.Consume()

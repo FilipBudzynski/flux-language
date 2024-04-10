@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -142,7 +141,7 @@ func TestLexerCodeExample(t *testing.T) {
 
 func TestStringNotClosed(t *testing.T) {
 	input := `"unclosed string`
-	expectedErrorMessage := "error [1, 17] String not closed, perhaps you forgot \""
+	expectedError := NewLexerError(STRING_NOT_CLOSED, NewPosition(1, 17))
 
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
@@ -150,14 +149,14 @@ func TestStringNotClosed(t *testing.T) {
 
 	_, err := lexer.GetNextToken()
 
-	if err == nil || err.Error() != expectedErrorMessage {
-		t.Errorf("Expected error: %s, but got: %v", expectedErrorMessage, err)
+	if err == nil || err.Error() != expectedError.Error() {
+		t.Errorf("Expected error: %v, but got: %v", expectedError, err)
 	}
 }
 
 func TestIntValueLimitExceeded(t *testing.T) {
 	input := fmt.Sprintf("int a := %d0", math.MaxInt)
-	expectedError := errors.New("error [1, 10], Int value limit Exceeded")
+	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, NewPosition(1, 10))
 
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
@@ -196,6 +195,7 @@ func TestLexerStringTokenEscaping(t *testing.T) {
 
 func TestLexerInvalidStringTokenEscaping(t *testing.T) {
 	input := `"Hello\nWorld\!\"\\"`
+	expectedError := NewLexerError(INVALID_ESCAPING, NewPosition(1, 15))
 
 	source, _ := NewScanner(strings.NewReader(input))
 	lexer := NewLexer(source)
@@ -204,9 +204,8 @@ func TestLexerInvalidStringTokenEscaping(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for invalid escaping, got nil")
 	} else {
-		expectedErrorMsg := "error [1, 15] Invalid syntax escaping"
-		if err.Error() != expectedErrorMsg {
-			t.Errorf("Expected error message: %s, got: %s", expectedErrorMsg, err.Error())
+		if err.Error() != expectedError.Error() {
+			t.Errorf("Expected error message: %s, got: %s", expectedError, err.Error())
 		}
 	}
 }

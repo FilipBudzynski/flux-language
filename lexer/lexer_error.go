@@ -18,7 +18,7 @@ const (
 
 var errorMessage = map[ErrorCode]string{
 	INT_CAPACITY_EXCEEDED:        "error [%d, %d] Int value limit Exceeded",
-	FLOAT_CAPACITY_EXCEEDED:      "error [%d, %d], Float decimal value limit Exceeded",
+	FLOAT_CAPACITY_EXCEEDED:      "error [%d, %d] Float decimal value limit Exceeded",
 	IDENTIFIER_CAPACITY_EXCEEDED: "error [%d, %d] Identifier capacity exceeded",
 	STRING_CAPACITY_EXCEEDED:     "error [%d, %d] String capacity exceeded",
 	STRING_NOT_CLOSED:            "error [%d, %d] String not closed, perhaps you forgot \"",

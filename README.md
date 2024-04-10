@@ -59,8 +59,8 @@ Implementacja wszystkich elementów napisana w języku **Golang**.
 Inicjalizacja i przypisanie wartości
 
 ```go
-a := 5
-b := 2
+int a := 5
+int b := 2
 
 a = 8
 ```
@@ -70,7 +70,7 @@ a = 8
 Operacje arytmetyczne
 
 ```go
-a := 3
+int a := 3
 a = a + 3 * (2 - 1)
 ```
 
@@ -94,7 +94,7 @@ if y > 5 {
     }
 }
 
-nazwa := "Ala ma psa"
+string nazwa := "Ala ma psa"
 if nazwa == "Ala ma kota" {
     print("Kot należy do Ani")
 } else {
@@ -107,13 +107,13 @@ if nazwa == "Ala ma kota" {
 Instrukcja pętli for
 
 ```go
-i := 0
+int i := 0
 while i < 10{
     print(i)
     i = i + 1
 }
 
-num := 10
+int num := 10
 while num > 0 {
     print(num)
     num = num - i
@@ -129,8 +129,8 @@ circleArea(r int) float    {
     return 3.14 * (r * r)
 }
 
-r := 2
-a := circleArea(r)        # a == 12.56636
+int r := 2
+int a := circleArea(r)        # a == 12.56636
 ```
 
 ---
@@ -138,16 +138,14 @@ a := circleArea(r)        # a == 12.56636
 funkcja rekurencyjna
 
 ```go
-fibonacci(n) {
+fibonacci(n) int {
   if n <= 1 {
     return n
   } else {
     return fibonacci(n - 1) + fibonacci(n - 2)
   }
 }
-result := fibonacci(5)
-
-2 + 4 as float
+int result := fibonacci(5)
 ```
 
 ---
@@ -155,11 +153,11 @@ result := fibonacci(5)
 Konwersja typów
 
 ```go
-a := 5
-c := a as string
+int a := 5
+string c := a as string
 print(c)        # "5"
 
-b := 0
+int b := 0
 b = b as bool   # "false"
 ```
 
@@ -171,7 +169,7 @@ sumUp(a,b int) int {
 }
 
 whatWillGetMe() string {
-    switch sumUp(2, 3) {
+    return switch sumUp(2, 3) { 
         >2 and <=4 => "A pint",
         5          => "Decent beverage",
         >5 and <15 => "A NICE bevrage",
@@ -186,7 +184,7 @@ giveMeWord() string {
 }
 
 nameNumber() int {
-    switch giveMeWord() {
+    return switch giveMeWord() {
         "Sammy"  => 0,
         "World"  => 1,
         "word"   => 2,
@@ -250,14 +248,19 @@ type_annotation       = "int" | "float" | "bool" | "str" ;
 
 block                 = "{" , { statement } , "}" ;
 
-statement             = declar_assign_call
+statement             = variable_declaration
+                      | assign_or_call
                       | conditional_statement
                       | loop_statement
                       | switch_statement
                       | return_statement
                       ;
                       
-declar_assign_call    = identifier, [ ( ( ":=" | "=" ), expression ) | "(", [ argumets ], ")" ] ;
+variable_declaration  = type_annotation, identifier, ":=", expression ;
+                      
+identifier_or_call    = identifier, [ "(", [ argumets ], ")" ] ;
+
+assign_or_call        = identifier,  "=", expression ;
 
 arguments             = expression , { "," , expression } ;
 
@@ -265,7 +268,7 @@ conditional_statement = "if" , expression , block , [ "else" , block ] ;
 
 loop_statement        = "while" , expression, block ;
 
-switch_statement      = "switch", expression, "{", switch_case, { ",", switch_case "}" ;
+switch_statement      = "switch", ( variable_declaration, { ",", variable_declaraion } ) | expression, "{", switch_case, { ",", switch_case "}" ;
 switch_case           = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ), } ; 
 
 return_statement      = "return" , [ expression ] ;
@@ -282,14 +285,14 @@ relation_operator     = ">="
                       ;
 additive_term         = multiplicative_term, { ("+" | "-"), multiplicative_term } ;
 multiplicative_term   = unary_operator, { ("*" | "/"), unary_operator } ; 
-unary_operator        = [ ("-" | "!") ], casted_term ;
-casted_term           = term, [ "as", type_annotation ] ;
+# mozna zamienic miejscami unary_operator i casted_term
+casted_term           = casted_term, [ "as", type_annotation ] ;
+unary_operator        = [ ("-" | "!") ], term ;
 term                  = integer
                       | float
                       | bool
                       | string
-                      | declar_assign_call
-                      | switch_element
+                      | identifier_or_call
                       | "(" , expression , ")"
                       ;
 
@@ -358,17 +361,41 @@ Format błędów:
 
 ---
 
+Niezamknięty string:
+
+```go
+string a := "to jest napis
+```
+
+```go
+error [1, 27] String not closed, perhaps you forgot "
+```
+
+---
+
+Wyjście poza limit wartości int
+
+```go
+int num := 99999999999999...
+```
+
+```go
+error [1, 12] Int value limit Exceeded
+```
+
+---
+
 Błąd przypisania:
 
 ```go
 main(){
-  a := 5
+  int a := 5
   a = "Ala ma kota"
 }
 ```
 
 ```go
-Error [3:4]: Invalid value assignment. The type of variable a is numeric, and you are trying to assign it as string. 
+Error [3, 4] Invalid value assignment. The type of variable a is numeric, and you are trying to assign it as string. 
 ```
 
 ---
@@ -386,7 +413,7 @@ main(){
 ```
 
 ```go
-Error [2:10]: Cannot use int as return value, function should return float.
+Error [2, 0] Cannot use int as return value, function should return float.
 ```
 
 ---
@@ -399,7 +426,7 @@ kelvinToCelcius(temp int) int {
 }
 
 howCold(kelvin int) string {
-  switch kelvinToCelcius(kelvin) {
+  return switch kelvinToCelcius(kelvin) {
     <(-20)       => "Freezing",
     >0 and <10   => "Chilling",
     >=10 and <20 => "Warm",
@@ -408,13 +435,13 @@ howCold(kelvin int) string {
 }
 
 main(){
-  weather := kelvinToCelcius(300)
+  int weather := kelvinToCelcius(300)
   print(weather)
 }
 ```
 
 ```go
-Error [6:34]: Not all cases matched for the switch statement.
+Error [6, 34] Not all cases matched for the switch statement.
 ```
 
 ---
@@ -428,7 +455,7 @@ main(){}
 ```
 
 ```go
-Error [2:9]: Undefind variable 'a'.
+Error [2, 9] Undefind variable 'a'.
 ```
 
 ---
@@ -442,7 +469,7 @@ main() {
 ```
 
 ```go
-Error [2:9]: Undefined function 'unknownFunction'.
+Error [2, 9] Undefined function 'unknownFunction'.
 ```
 
 ---
@@ -459,7 +486,7 @@ main() {
 ```
 
 ```go
-Error [5:12]: Function 'add' expects 2 arguemnts, but 1 provided.
+Error [5, 12] Function 'add' expects 2 arguemnts, but 1 provided.
 ```
 
 ---
@@ -468,7 +495,7 @@ Błąd niezgodności typów w instrukcji warunkowej:
 
 ```go
 main() {
-  a := 5
+  int a := 5
   if a == "test" {
     print("Equal")
   }
@@ -476,7 +503,7 @@ main() {
 ```
 
 ```go
-Error [2:11]: Incompatible types in conditional statement.
+Error [2, 11] Incompatible types in conditional statement.
 ```
 
 ---
@@ -485,14 +512,14 @@ Błąd niepoprawnego użycia operatora:
 
 ```go
 main() {
-  a := 10
-  b := "5"
+  int a := 10
+  string b := "5"
   print(a / b)
 }
 ```
 
 ```go
-Error [4:11]: Invalid operation. Division operator cannot be applied to operand of type int and string.
+Error [4, 11] Invalid operation. Division operator cannot be applied to operand of type int and string.
 ```
 
 ---
@@ -501,7 +528,7 @@ Błąd niepoprawnego użycia operatora relacyjnego:
 
 ```go
 main() {
-  a := 5
+  int a := 5
   if a < "test" {
     print("Less than")
   }
@@ -509,7 +536,7 @@ main() {
 ```
 
 ```go
-Error [3:8]: Invalid comparison. Eelational operation cannot be applied to types int and string.
+Error [3, 8] Invalid comparison. Eelational operation cannot be applied to types int and string.
 ```
 
 ---
@@ -518,20 +545,25 @@ Błąd dzielenia przez zero:
 
 ```go
 main() {
-  a := 10
-  b := 0
+  int a := 10
+  int b := 0
   result := a / b
 }
 ```
 
 ```go
-Error [3:12]: Division by zero is prohibited.
+Error [3, 12] Division by zero is prohibited.
 ```
 
 ## Rozróżniane Tokeny
 
 ---
 
+Struktura tokenu
+
+- TokeType
+- Position
+- Value
 1. Zmienne:
     - **`IDENTIFIER`**
 2. Operatory arytmetyczne:
@@ -549,14 +581,14 @@ Error [3:12]: Division by zero is prohibited.
 4. Operatory logiczne:
     - **`AND`**
     - **`OR`**
-    - **`NEGATE`** ( “-” lub “!”)
+    - `**NEGATE**` ( “-” lub “!”)
 5. Słowa kluczowe:
     - **`IF`**
     - **`ELSE`**
-    - **`FOR`**
+    - `**WHILE**`
     - **`SWITCH`**
     - **`DEFAULT`**
-    - **`AS`**
+    - `**AS**`
     - **`RETURN`**
 6. Symbole specjalne:
     - **`ASSIGN`** (**`:=`**)
@@ -567,28 +599,19 @@ Error [3:12]: Division by zero is prohibited.
     - **`RIGHT_PARENTHESIS`** (**`)`**)
     - **`COMMA`** (**`,`**)
 7. Typy danych:
-    - **`INTEGER`**
+    - **`INT`**
     - **`FLOAT`**
     - **`STRING`**
     - **`BOOL`**
-8. Funkcje i procedury:
-    - **`FUNCTION_DEFINITION`**
-    - **`FUNCTION_CALL`**
-    - **`PARAMETER`**
-    - **`ARGUMENT`**
-9. Ostrzeżenia i błędy:
-    - **`ERROR`**
-    - **`WARNING`**
-10. Inne:
-    - **`ERROR_MESSAGE`**
-    - **`WARNING_MESSAGE`**
-    - **`STX`** (start of text)
-    - **`ETX`** (end of text)
-11. Struktura tokenu
-    - **`TOKEN_TYPE`**
-    - **`UNDEFIND_TOKEN`**
-    - **`COMMENT`**
-    - **`POSSITION`**
+8. Wartości stałe:
+    - **`CONST_INT`**
+    - **`CONST_FLOAT`**
+    - **`CONST_STRING`**
+    - **`CONST_BOOL`**
+9. Inne:
+    - **`STX`** (start of text) ****
+    - **`ETX`** (end of text) ****
+    - **`EOL` (end of line)**
 
 ## Specyfikacja danych wejściowych strumienie/pliki i danych konfiguracyjnych
 

@@ -48,14 +48,22 @@ func (s *Scanner) NextRune() (err error) {
 		return io.EOF
 	}
 
+	// osobna funkcja
 	char, _, err := s.Reader.ReadRune()
 	if err != nil {
 		if err == io.EOF {
 			char = EOF
 		} else {
+			// log.Print(err)
 			return err
 		}
 	}
+
+	if char == '\r' {
+		// s.Reader.Peek()
+		return s.NextRune()
+	}
+
 	s.CharCount++
 	s.Current = char
 	return nil

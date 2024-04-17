@@ -33,6 +33,11 @@ func TestScanner(t *testing.T) {
 			expectedRunes: []rune{'h', 'e', 'l', 'l', 'o', '\n', '\n', '\n', '\n', '\n', EOF},
 			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}},
 		},
+		{
+			input:         "\r\nt\t\r\n",
+			expectedRunes: []rune{'\n', 't', '\t', '\n', EOF},
+			expectedPos:   []Position{{1, 1}, {2, 1}, {2, 2}, {2, 3}, {3, 1}},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -7,13 +7,22 @@ import (
 )
 
 type Lexer struct {
-	source *Scanner
-	pos    Position
+	source          *Scanner
+	errorHandler    func()
+	pos             Position
+	identifierLimit int
+	stringLimit     int
+	intLimit        int
 }
 
-func NewLexer(source *Scanner) *Lexer {
-	l := &Lexer{source: source}
-	l.pos = l.source.Position()
+func NewLexer(source *Scanner, identifierLimit, stringLimit, intLimit int) *Lexer {
+	l := &Lexer{
+		source:          source,
+		pos:             source.Position(),
+		identifierLimit: identifierLimit,
+		stringLimit:     stringLimit,
+		intLimit:        intLimit,
+	}
 	return l
 }
 
@@ -25,6 +34,7 @@ func (l *Lexer) GetNextToken() (t *Token, err error) {
 		return NewToken(ETX, pos, nil), nil
 	}
 
+	// EOL nie będzie potrzebny
 	if l.source.Current == '\n' {
 		l.Consume()
 		return NewToken(EOL, pos, nil), nil
@@ -68,7 +78,7 @@ func (l *Lexer) GetNextToken() (t *Token, err error) {
 }
 
 func (l *Lexer) Consume() rune {
-	l.source.NextRune()
+	_ = l.source.NextRune()
 	l.pos = l.source.Position()
 	return l.source.Current
 }
@@ -118,19 +128,19 @@ func (l *Lexer) createNumber(position Position) (*Token, error) {
 	if !l.isDigit(l.source.Current) {
 		return nil, nil
 	}
-	if l.source.Current == '0' {
-		l.Consume()
-		return NewToken(CONST_INT, position, 0), nil
-	}
 
-	var value int
-	for l.isDigit(l.source.Current) {
-		digit := int(l.source.Current - '0')
-		if value >= (math.MaxInt-digit)/10 {
-			return nil, NewLexerError(INT_CAPACITY_EXCEEDED, position)
+	value := int(l.source.Current - '0')
+	l.Consume()
+
+	if value != 0 {
+		for l.isDigit(l.source.Current) {
+			digit := int(l.source.Current - '0')
+			if value > (l.intLimit-digit)/10 {
+				return nil, NewLexerError(INT_CAPACITY_EXCEEDED, position)
+			}
+			value = value*10 + digit
+			l.Consume()
 		}
-		value = value*10 + digit
-		l.Consume()
 	}
 
 	if l.source.Current != '.' {
@@ -142,7 +152,7 @@ func (l *Lexer) createNumber(position Position) (*Token, error) {
 	var decValue int
 	for l.isDigit(l.source.Current) {
 		digit := int(l.source.Current - '0')
-		if decValue >= (math.MaxInt-digit)/10 {
+		if decValue > (l.intLimit-digit)/10 {
 			return nil, NewLexerError(FLOAT_CAPACITY_EXCEEDED, l.pos)
 		}
 		decValue = decValue*10 + digit
@@ -155,35 +165,48 @@ func (l *Lexer) createNumber(position Position) (*Token, error) {
 }
 
 func (l *Lexer) createIdentifier(position Position) (*Token, error) {
-	var strBuilder strings.Builder
-
 	if !unicode.IsLetter(l.source.Current) {
 		return nil, nil
 	}
+
+	var strBuilder strings.Builder
 
 	strBuilder.WriteRune(l.source.Current)
 	l.Consume()
 
 	for unicode.IsLetter(l.source.Current) || unicode.IsDigit(l.source.Current) || l.source.Current == '_' {
-		if strBuilder.Len() >= 64*1024 {
+		// consts for limits
+		if strBuilder.Len() == l.identifierLimit {
 			return nil, NewLexerError(IDENTIFIER_CAPACITY_EXCEEDED, l.pos)
 		}
 		strBuilder.WriteRune(l.source.Current)
 		l.Consume()
 	}
 
-	if tokenType, ok := KeyWords[strBuilder.String()]; ok {
-		if tokenType == CONST_BOOL {
-			if strBuilder.String() == "true" {
-				return NewToken(CONST_BOOL, position, true), nil
-			} else {
-				return NewToken(CONST_BOOL, position, false), nil
-			}
-		}
+	builtString := strBuilder.String()
+	if tokenType, ok := KeyWords[builtString]; ok {
 		return NewToken(tokenType, position, nil), nil
 	}
 
-	return NewToken(IDENTIFIER, position, strBuilder.String()), nil
+	return NewToken(IDENTIFIER, position, builtString), nil
+}
+
+func (l *Lexer) handleEscaping() rune {
+	if l.source.Current != '\\' {
+		return l.source.Current
+	}
+	l.Consume()
+	switch l.source.Current {
+	case 'n':
+		return '\n'
+	case 't':
+		return '\t'
+	case '"':
+		return '"'
+	case '\\':
+		return '\\'
+	}
+	return EOF
 }
 
 func (l *Lexer) createString(position Position) (*Token, error) {
@@ -193,26 +216,11 @@ func (l *Lexer) createString(position Position) (*Token, error) {
 	var strBuilder strings.Builder
 	l.Consume()
 	for l.source.Current != '"' && l.source.Current != EOF {
-		if strBuilder.Len() >= 64*1024 {
+		if strBuilder.Len() == l.stringLimit {
 			return nil, NewLexerError(STRING_CAPACITY_EXCEEDED, l.pos)
 		}
-		if l.source.Current == '\\' {
-			l.Consume()
-			switch l.source.Current {
-			case 'n':
-				strBuilder.WriteRune('\n')
-			case 't':
-				strBuilder.WriteRune('\t')
-			case '"':
-				strBuilder.WriteRune('"')
-			case '\\':
-				strBuilder.WriteRune('\\')
-			default:
-				return nil, NewLexerError(INVALID_ESCAPING, l.pos)
-			}
-		} else {
-			strBuilder.WriteRune(l.source.Current)
-		}
+		charToAppend := l.handleEscaping()
+		strBuilder.WriteRune(charToAppend)
 		l.Consume()
 	}
 

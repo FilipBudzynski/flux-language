@@ -21,15 +21,14 @@ var KeyWords = map[string]TokenTypes{
 	"string":  STRING,
 	"float":   FLOAT,
 	"bool":    BOOL,
-	"true":    CONST_BOOL,
-	"false":   CONST_BOOL,
+	"true":    CONST_TRUE,
+	"false":   CONST_FALSE,
 	"switch":  SWITCH,
 	"while":   WHILE,
 	"if":      IF,
 	"else":    ELSE,
 	"default": DEFAULT,
 	"return":  RETURN,
-	"print":   PRINT,
 	"and":     AND,
 	"or":      OR,
 }
@@ -50,6 +49,9 @@ type Token struct {
 }
 
 func NewToken(token_type TokenTypes, position Position, value any) *Token {
+	// switch v := value.(type) {
+	// case int:
+	// }
 	return &Token{
 		Type:  token_type,
 		Pos:   position,
@@ -68,7 +70,8 @@ const (
 	CONST_INT
 	CONST_FLOAT
 	CONST_STRING
-	CONST_BOOL
+	CONST_TRUE
+	CONST_FALSE
 	INT
 	FLOAT
 	STRING
@@ -116,7 +119,8 @@ var tokenTypeNames = [...]string{
 	"CONST_INT",
 	"CONST_FLOAT",
 	"CONST_STRING",
-	"CONST_BOOL",
+	"CONST_TRUE",
+	"CONST_FALSE",
 	"INT",
 	"FLOAT",
 	"STRING",

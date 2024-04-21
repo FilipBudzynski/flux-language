@@ -1,7 +1,6 @@
 package lexer
 
 import (
-	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -38,6 +37,11 @@ func TestScanner(t *testing.T) {
 			expectedRunes: []rune{'\n', 't', '\t', '\n', EOF},
 			expectedPos:   []Position{{1, 1}, {2, 1}, {2, 2}, {2, 3}, {3, 1}},
 		},
+		{
+			input:         "\r\tt\t\r\n",
+			expectedRunes: []rune{'\r', '\t', 't', '\t', '\n', EOF},
+			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 1}},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -53,12 +57,11 @@ func TestScanner(t *testing.T) {
 			runes = append(runes, char)
 			positions = append(positions, pos)
 
-			err := scanner.NextRune()
-			if err == io.EOF {
+			if char == EOF {
 				break
-			} else if err != nil {
-				t.Fatalf("error reading rune: %v", err)
 			}
+
+			scanner.NextRune()
 		}
 
 		if !reflect.DeepEqual(runes, tc.expectedRunes) {
@@ -79,7 +82,7 @@ func TestScannerMultipleEOF(t *testing.T) {
 	scanner, _ := NewScanner(strings.NewReader(input))
 
 	for i, expectedRune := range expectedRunes {
-		_ = scanner.NextRune()
+		scanner.NextRune()
 		actualPos := scanner.Position()
 
 		actualRune := scanner.Character()

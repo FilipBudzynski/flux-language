@@ -1,5 +1,84 @@
 package lexer
 
+import (
+	"fmt"
+	"reflect"
+)
+
+const WRONG_TYPE_ERROR = "wrong type to token type match, expected: %s, got: %s"
+
+type Position struct {
+	Line   int
+	Column int
+}
+
+func NewPosition(line, column int) Position {
+	return Position{Line: line, Column: column}
+}
+
+type Token struct {
+	Value    any
+	Type     TokenTypes
+	Position Position
+}
+
+func convertValue(value any, expectedType reflect.Kind) (any, error) {
+	switch expectedType {
+	case reflect.Int:
+		if v, ok := value.(int); ok {
+			return v, nil
+		}
+	case reflect.Float64:
+		if v, ok := value.(float64); ok {
+			return v, nil
+		}
+	case reflect.String:
+		if v, ok := value.(string); ok {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf(WRONG_TYPE_ERROR, expectedType, value)
+}
+
+func NewToken(token_type TokenTypes, position Position, value any) *Token {
+	switch token_type {
+	case CONST_INT:
+		v, err := convertValue(value, reflect.Int)
+		if err != nil {
+			panic(err)
+		}
+		value = v
+	case CONST_FLOAT:
+		v, err := convertValue(value, reflect.Float64)
+		if err != nil {
+			panic(err)
+		}
+		value = v
+	case CONST_STRING:
+		v, err := convertValue(value, reflect.String)
+		if err != nil {
+			panic(err)
+		}
+		value = v
+	case IDENTIFIER:
+		v, err := convertValue(value, reflect.String)
+		if err != nil {
+			panic(err)
+		}
+		value = v
+	}
+
+	return &Token{
+		Type:     token_type,
+		Position: position,
+		Value:    value,
+	}
+}
+
+func (b *Token) GetType() TokenTypes {
+	return b.Type
+}
+
 var Operators = map[rune]TokenTypes{
 	'+': PLUS,
 	'-': MINUS,
@@ -40,27 +119,6 @@ var DoubleOperators = map[string]TokenTypes{
 	"!=": NOT_EQUALS,
 	"=>": CASE_ARROW,
 	":=": DECLARE,
-}
-
-type Token struct {
-	Value any
-	Type  TokenTypes
-	Pos   Position
-}
-
-func NewToken(token_type TokenTypes, position Position, value any) *Token {
-	// switch v := value.(type) {
-	// case int:
-	// }
-	return &Token{
-		Type:  token_type,
-		Pos:   position,
-		Value: value,
-	}
-}
-
-func (b *Token) GetType() TokenTypes {
-	return b.Type
 }
 
 type TokenTypes int

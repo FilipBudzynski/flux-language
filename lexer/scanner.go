@@ -3,16 +3,10 @@ package lexer
 import (
 	"bufio"
 	"io"
+	"log"
 )
 
-type Position struct {
-	Line   int
-	Column int
-}
-
-func NewPosition(line, column int) Position {
-	return Position{Line: line, Column: column}
-}
+const EOF rune = -1
 
 type Scanner struct {
 	Reader    *bufio.Reader
@@ -28,45 +22,51 @@ func NewScanner(reader io.Reader) (*Scanner, error) {
 		CharCount: 0,
 	}
 
-	err := scanner.NextRune()
-	if err != nil {
-		return nil, err
-	}
+	scanner.NextRune()
 
 	return scanner, nil
 }
 
-const EOF rune = -1
+func (s *Scanner) readRune() rune {
+	char, _, err := s.Reader.ReadRune()
+	if err != nil {
+		if err == io.EOF {
+			char = EOF
+		} else {
+			log.Println("Unexpected error while reading source")
+			return EOF
+		}
+	}
+	return char
+}
 
-func (s *Scanner) NextRune() (err error) {
+func (s *Scanner) NextRune() {
 	if s.Current == '\n' {
 		s.LineCount++
 		s.CharCount = 0
 	}
 
 	if s.Current == EOF {
-		return io.EOF
+		return
 	}
 
-	// osobna funkcja
-	char, _, err := s.Reader.ReadRune()
-	if err != nil {
-		if err == io.EOF {
-			char = EOF
-		} else {
-			// log.Print(err)
-			return err
-		}
-	}
+	char := s.readRune()
 
 	if char == '\r' {
-		// s.Reader.Peek()
-		return s.NextRune()
+		nextChar := s.readRune()
+		if nextChar == '\n' {
+			char = nextChar
+		} else {
+			err := s.Reader.UnreadRune()
+			if err != nil {
+				log.Println("Unexpected error while reading source", err)
+				char = EOF
+			}
+		}
 	}
 
 	s.CharCount++
 	s.Current = char
-	return nil
 }
 
 func (s *Scanner) Position() Position {

@@ -2,10 +2,16 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"math"
 	"os"
 	"strings"
 	"tkom/lexer"
+)
+
+const (
+	identifierLimit = 500
+	stringLimit     = 1000
+	intLimit        = math.MaxInt
 )
 
 func main() {
@@ -17,12 +23,9 @@ func scannerTest() {
 	file := strings.NewReader("int a = 5\n")
 	scanner, _ := lexer.NewScanner(file)
 	for {
-		err := scanner.NextRune()
-		if err == io.EOF {
+		scanner.NextRune()
+		if scanner.Character() == lexer.EOF {
 			break
-		} else if err != nil {
-			fmt.Println("Error scanning file:", err)
-			return
 		}
 		position := scanner.Position()
 		fmt.Printf("Line: %d, Char: %d, Value: %c\n", position.Line, position.Column, scanner.Current)
@@ -30,26 +33,19 @@ func scannerTest() {
 }
 
 func lexerTest() {
-	// sprawdzic zeby file byl zamykany przy bledach
 	file, err := os.Open("example.txt")
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
 
-	// text := "int a = 5\nif a == 6\nwhile a >c"
-	// reader := strings.NewReader(text)
 	source, _ := lexer.NewScanner(file)
-	lex := lexer.NewLexer(source)
+	lex := lexer.NewLexer(source, identifierLimit, stringLimit, intLimit)
 
 	for {
-		token, err := lex.GetNextToken()
-		if err != nil {
-			fmt.Println("Błąd podczas parsowania:", err)
-			break
-		}
+		token := lex.GetNextToken()
 
-		if token == nil {
+		if token == nil || token.Type == lexer.ETX {
 			break
 		}
 

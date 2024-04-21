@@ -58,7 +58,7 @@ func TestSingleTokens(t *testing.T) {
 		{
 			name:   "CommentToken",
 			input:  "# This is just a comment",
-			expect: NewToken(COMMENT, NewPosition(1, 1), nil),
+			expect: NewToken(COMMENT, NewPosition(1, 1), "# This is just a comment"),
 		},
 		{
 			name:   "ConstBoolTokenFalse",
@@ -88,10 +88,7 @@ func TestSingleTokens(t *testing.T) {
 			source, _ := NewScanner(reader)
 			lexer := NewLexer(source, identifierLimit, stringLimit, intLimit)
 
-			token, err := lexer.GetNextToken()
-			if err != nil {
-				t.Fatalf("Error while getting token: %v", err)
-			}
+			token := lexer.GetNextToken()
 
 			if !reflect.DeepEqual(token, tc.expect) {
 				t.Errorf("Expected token: %v, Got: %v", tc.expect, token)
@@ -112,12 +109,10 @@ func TestLexerCodeExample(t *testing.T) {
 				NewToken(IDENTIFIER, NewPosition(1, 5), "a"),
 				NewToken(ASSIGN, NewPosition(1, 7), nil),
 				NewToken(CONST_INT, NewPosition(1, 9), 5),
-				NewToken(EOL, NewPosition(1, 10), nil),
 				NewToken(IF, NewPosition(2, 1), nil),
 				NewToken(IDENTIFIER, NewPosition(2, 4), "a"),
 				NewToken(EQUALS, NewPosition(2, 6), nil),
 				NewToken(CONST_INT, NewPosition(2, 9), 6),
-				NewToken(EOL, NewPosition(2, 10), nil),
 				NewToken(WHILE, NewPosition(3, 1), nil),
 				NewToken(IDENTIFIER, NewPosition(3, 7), "a"),
 				NewToken(GREATER_THAN, NewPosition(3, 9), nil),
@@ -134,10 +129,7 @@ func TestLexerCodeExample(t *testing.T) {
 
 		var tokens []*Token
 		for {
-			token, err := lexer.GetNextToken()
-			if err != nil {
-				break
-			}
+			token := lexer.GetNextToken()
 			tokens = append(tokens, token)
 			if token.GetType() == ETX {
 				break
@@ -157,9 +149,12 @@ func TestStringNotClosed(t *testing.T) {
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
 	lexer := NewLexer(scanner, identifierLimit, stringLimit, intLimit)
+	errors := []error{}
+	lexer.ErrorHandler = func(err error) { errors = append(errors, err) }
 
-	_, err := lexer.GetNextToken()
+	_ = lexer.GetNextToken()
 
+	err := errors[0]
 	if err == nil || err.Error() != expectedError.Error() {
 		t.Errorf("Expected error: %v, but got: %v", expectedError, err)
 	}
@@ -172,12 +167,14 @@ func TestIntValueLimitExceeded(t *testing.T) {
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
 	lexer := NewLexer(scanner, identifierLimit, stringLimit, intLimit)
+	errors := []error{}
+	lexer.ErrorHandler = func(err error) { errors = append(errors, err) }
 
-	var err error
-	for err == nil {
-		_, err = lexer.GetNextToken()
+	for len(errors) == 0 {
+		_ = lexer.GetNextToken()
 	}
 
+	err := errors[0]
 	if err.Error() != expectedError.Error() {
 		t.Errorf("Expected error: %v, but got: %v", expectedError, err)
 	}
@@ -190,10 +187,7 @@ func TestLexerStringTokenEscaping(t *testing.T) {
 	source, _ := NewScanner(strings.NewReader(input))
 	lexer := NewLexer(source, identifierLimit, stringLimit, intLimit)
 
-	token, err := lexer.GetNextToken()
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	token := lexer.GetNextToken()
 
 	if token.Type != CONST_STRING {
 		t.Errorf("Expected CONST_STRING token type, got %v", token.Type)
@@ -204,19 +198,81 @@ func TestLexerStringTokenEscaping(t *testing.T) {
 	}
 }
 
-// func TestLexerInvalidStringTokenEscaping(t *testing.T) {
-// 	input := `"Hello\nWorld\!\"\\"`
-// 	expectedError := NewLexerError(INVALID_ESCAPING, NewPosition(1, 15))
-//
-// 	source, _ := NewScanner(strings.NewReader(input))
-// 	lexer := NewLexer(source)
-//
-// 	_, err := lexer.GetNextToken()
-// 	if err == nil {
-// 		t.Error("Expected error for invalid escaping, got nil")
-// 	} else {
-// 		if err.Error() != expectedError.Error() {
-// 			t.Errorf("Expected error message: %s, got: %s", expectedError, err.Error())
-// 		}
-// 	}
-// }
+func TestLexerInvalidStringTokenEscaping(t *testing.T) {
+	input := `"Hello\nWorld\!\"\\"`
+	expectedError := NewLexerError(INVALID_ESCAPING, NewPosition(1, 15))
+
+	source, _ := NewScanner(strings.NewReader(input))
+	lexer := NewLexer(source, identifierLimit, stringLimit, intLimit)
+	errors := []error{}
+	lexer.ErrorHandler = func(err error) { errors = append(errors, err) }
+
+	_ = lexer.GetNextToken()
+
+	err := errors[0]
+	if err == nil {
+		t.Error("Expected error for invalid escaping, got nil")
+	} else {
+		if err.Error() != expectedError.Error() {
+			t.Errorf("Expected error message: %s, got: %s", expectedError, err.Error())
+		}
+	}
+}
+
+func TestStringValueLimitExceeded(t *testing.T) {
+	stringLimit := 5
+	input := `"WAAAAA"`
+	expectedError := NewLexerError(STRING_CAPACITY_EXCEEDED, NewPosition(1, 7))
+
+	reader := strings.NewReader(input)
+	scanner, _ := NewScanner(reader)
+	lexer := NewLexer(scanner, identifierLimit, stringLimit, intLimit)
+	var testError error
+	lexer.ErrorHandler = func(err error) { testError = err }
+
+	for testError == nil {
+		_ = lexer.GetNextToken()
+	}
+
+	if testError.Error() != expectedError.Error() {
+		t.Errorf("Expected error: %v, but got: %v", expectedError, testError)
+	}
+}
+
+func TestLexerErrorHandling(t *testing.T) {
+	input := "abc 34 karma"
+	source, _ := NewScanner(strings.NewReader(input))
+
+	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, NewPosition(1, 5))
+	expectedTokens := []*Token{
+		NewToken(IDENTIFIER, NewPosition(1, 1), "abc"),
+		NewToken(ETX, NewPosition(1, 6), nil),
+	}
+
+	lexer := NewLexer(source, 10, 10, 10)
+	var externalErrors []error
+	lexer.ErrorHandler = func(err error) {
+		externalErrors = append(externalErrors, err)
+	}
+	tokens := []*Token{}
+
+	for {
+		token := lexer.GetNextToken()
+		tokens = append(tokens, token)
+		if token.Type == ETX {
+			break
+		}
+	}
+
+	if !reflect.DeepEqual(tokens, expectedTokens) {
+		t.Errorf("Expected: %+v\nGot: %+v\n", tokens, expectedTokens)
+	}
+
+	if len(externalErrors) == 0 {
+		t.Error("Expected lexer to stop after encountering an error, but it continued parsing")
+	}
+
+	if len(externalErrors) == 1 && externalErrors[0].Error() != expectedError.Error() {
+		t.Errorf("Expected error: %s, but got: %s", expectedError, externalErrors[0].Error())
+	}
+}

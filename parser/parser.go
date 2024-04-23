@@ -5,11 +5,6 @@ import (
 	lex "tkom/lexer"
 )
 
-const (
-	NO_ETX_TOKEN = "program parsed succesfully but no ETX was found"
-	SYNTAX_ERROR = "syntax error"
-)
-
 type Parser struct {
 	lexer        *lex.Lexer
 	ErrorHandler func(error)
@@ -17,10 +12,12 @@ type Parser struct {
 }
 
 func NewParser(lexer *lex.Lexer, errHandler func(error)) *Parser {
-	return &Parser{
+	p := &Parser{
 		lexer:        lexer,
 		ErrorHandler: errHandler,
 	}
+	p.consumeToken()
+	return p
 }
 
 func (p *Parser) consumeToken() {
@@ -46,11 +43,11 @@ func (p *Parser) recoverFromPanic() {
 
 // program = { function_definition } ;
 func (p *Parser) ParseProgram() *Program {
+	defer p.recoverFromPanic()
+
 	functions := map[string]FunDef{}
 
 	for funDef := p.parseFunDef(); funDef != nil; {
-		defer p.recoverFromPanic()
-
 		if f, ok := functions[funDef.Name]; ok {
 			tokenCol := p.token.Position.Column
 			tokenLine := p.token.Position.Line
@@ -101,6 +98,7 @@ func (p *Parser) parseParameters() []Parameter {
 	for p.token.Type == lex.COMMA {
 		p.consumeToken()
 		paramGroup := p.parseParameterGroup()
+		parameters = append(parameters, paramGroup...)
 		if paramGroup == nil {
 			panic(fmt.Errorf("syntax error, no parameters after comma"))
 		}
@@ -111,16 +109,53 @@ func (p *Parser) parseParameters() []Parameter {
 
 // parameter_group = identifier , { ",", identifier }, type_annotation ;
 func (p *Parser) parseParameterGroup() []Parameter {
-	return nil
+	if p.token.Type != lex.IDENTIFIER {
+		return nil
+	}
+
+	params := []Parameter{}
+	params = append(params, newParameter(p.token.Value.(string), p.token.Position))
+
+	p.consumeToken()
+	// param1, param2, param3 string
+	for p.token.Type == lex.COMMA {
+		p.consumeToken()
+		if p.token.Type != lex.IDENTIFIER {
+			panic(fmt.Errorf(SYNTAX_ERROR_NO_IDENTIFIER, p.token.Position.Column, p.token.Position.Line))
+		}
+		params = append(params, newParameter(p.token.Value.(string), p.token.Position))
+		p.consumeToken()
+	}
+
+	paramsType := p.parseType()
+
+	if paramsType == nil {
+		panic(fmt.Errorf(SYNTAX_ERROR_NO_TYPE, p.token.Position.Column, p.token.Position.Line))
+	}
+
+	// warning ma racje, ale musze tak zrobic bo jak inaczej dodam typ dla każdego identifiera z grupy huh?
+	for i := range params {
+		params[i].Type = *paramsType
+	}
+
+	return params
 }
 
 // type_annotation = "int" | "float" | "bool" | "str" ;
 func (p *Parser) parseType() *lex.TokenTypes {
-	if p.token.Type == lex.INT || p.token.Type == lex.FLOAT || p.token.Type == lex.BOOL || p.token.Type == lex.STRING {
+	switch token := p.token.Type; token {
+	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
 		typ := p.token.Type
 		p.consumeToken()
 		return &typ
 	}
+
+	// if p.token.Type == lex.INT || p.token.Type == lex.FLOAT || p.token.Type == lex.BOOL || p.token.Type == lex.STRING {
+	// 	typ := p.token.Type
+	// 	p.consumeToken()
+	// 	return &typ
+	// }
+    
 	return nil
 }
 

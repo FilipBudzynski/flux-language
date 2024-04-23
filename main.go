@@ -49,7 +49,7 @@ func lexerTest() {
 			break
 		}
 
-		fmt.Printf("%-2v %-12v %-5v\n", token.Pos, token.Type.TypeName(), token.Value)
+		fmt.Printf("%-2v %-12v %-5v\n", token.Position, token.Type.TypeName(), token.Value)
 
 		if token.GetType() == lexer.ETX {
 			fmt.Println("Koniec pliku")

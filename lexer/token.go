@@ -67,7 +67,6 @@ func NewToken(token_type TokenTypes, position Position, value any) *Token {
 		}
 		value = v
 	}
-
 	return &Token{
 		Type:     token_type,
 		Position: position,

@@ -120,6 +120,20 @@ func TestLexerCodeExample(t *testing.T) {
 				NewToken(ETX, NewPosition(3, 11), nil),
 			},
 		},
+		{
+			input: "param1 int, param2 string, param3 bool",
+			tokens: []*Token{
+				NewToken(IDENTIFIER, NewPosition(1, 1), "param1"),
+				NewToken(INT, NewPosition(1, 8), nil),
+				NewToken(COMMA, NewPosition(1, 11), nil),
+				NewToken(IDENTIFIER, NewPosition(1, 13), "param2"),
+				NewToken(STRING, NewPosition(1, 20), nil),
+				NewToken(COMMA, NewPosition(1, 26), nil),
+				NewToken(IDENTIFIER, NewPosition(1, 28), "param3"),
+				NewToken(BOOL, NewPosition(1, 35), nil),
+				NewToken(ETX, NewPosition(1, 39), nil),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -137,6 +151,16 @@ func TestLexerCodeExample(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(tokens, tc.tokens) {
+			fmt.Println("Expected tokens:")
+			for _, token := range tc.tokens {
+				fmt.Printf("%v %v %v\n", token.Position, token.Type.TypeName(), token.Value)
+			}
+
+			fmt.Println("Got tokens:")
+			for _, token := range tokens {
+				fmt.Printf("%v %v %v\n", token.Position, token.Type.TypeName(), token.Value)
+			}
+
 			t.Errorf("Input: %s\nExpected: %+v\nGot: %+v\n", tc.input, tc.tokens, tokens)
 		}
 	}

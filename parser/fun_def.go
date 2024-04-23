@@ -4,9 +4,9 @@ import lex "tkom/lexer"
 
 type FunDef struct {
 	Name       string
-	Type       lex.TokenTypes
 	parameters []Parameter
 	block      Block
+	Type       lex.TokenTypes
 	Position   lex.Position
 }
 

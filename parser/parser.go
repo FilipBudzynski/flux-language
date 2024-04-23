@@ -24,15 +24,20 @@ func (p *Parser) consumeToken() {
 	p.token = *p.lexer.GetNextToken()
 }
 
-func (p *Parser) mustBe(tokenType lex.TokenTypes, syntaxErrMsg string) any {
+func (p *Parser) requierAndConsume(tokenType lex.TokenTypes, syntaxErrMessage string) lex.Token {
 	token := p.token
 	if token.Type != tokenType {
-		panic(fmt.Errorf(syntaxErrMsg, token.Position.Column, token.Position.Line))
+		panic(fmt.Errorf(syntaxErrMessage, token.Position.Column, token.Position.Line))
 	}
-	value := p.token.Value
-
 	p.consumeToken()
-	return value
+	return token
+}
+
+func (p *Parser) parseIdentifier() (string, lex.Position) {
+	name := p.token.Value.(string)
+	possition := p.token.Position
+	p.consumeToken()
+	return name, possition
 }
 
 func (p *Parser) recoverFromPanic() {
@@ -66,17 +71,11 @@ func (p *Parser) parseFunDef() *FunDef {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
-
-	// wiemy że to string, ale musze tak zrobić żeby compilator był szczęśliwy
-	name := p.token.Value.(string)
-	pos := p.token.Position
-
-	p.consumeToken()
-
-	_ = p.mustBe(lex.LEFT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
+	name, pos := p.parseIdentifier()
+	p.requierAndConsume(lex.LEFT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
 	params := p.parseParameters()
-	_ = p.mustBe(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
-	funcType := p.parseType()
+	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
+	funcType := p.parseTypeAnnotation()
 	block := p.parseBlock()
 	if block == nil {
 		panic(fmt.Errorf(SYNTAX_ERROR_NO_BLOCK, p.token.Position.Column, p.token.Position.Line))
@@ -91,7 +90,6 @@ func (p *Parser) parseParameters() []Parameter {
 	if paramGroup == nil {
 		return nil
 	}
-
 	parameters := []Parameter{}
 	parameters = append(parameters, paramGroup...)
 
@@ -103,7 +101,6 @@ func (p *Parser) parseParameters() []Parameter {
 			panic(fmt.Errorf("syntax error, no parameters after comma"))
 		}
 	}
-
 	return parameters
 }
 
@@ -112,37 +109,31 @@ func (p *Parser) parseParameterGroup() []Parameter {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
-
 	params := []Parameter{}
-	params = append(params, newParameter(p.token.Value.(string), p.token.Position))
+	params = append(params, NewParameter(p.parseIdentifier()))
 
-	p.consumeToken()
-	// param1, param2, param3 string
 	for p.token.Type == lex.COMMA {
 		p.consumeToken()
 		if p.token.Type != lex.IDENTIFIER {
 			panic(fmt.Errorf(SYNTAX_ERROR_NO_IDENTIFIER, p.token.Position.Column, p.token.Position.Line))
 		}
-		params = append(params, newParameter(p.token.Value.(string), p.token.Position))
-		p.consumeToken()
+		params = append(params, NewParameter(p.parseIdentifier()))
 	}
 
-	paramsType := p.parseType()
+	paramsType := p.parseTypeAnnotation()
 
 	if paramsType == nil {
 		panic(fmt.Errorf(SYNTAX_ERROR_NO_TYPE, p.token.Position.Column, p.token.Position.Line))
 	}
 
-	// warning ma racje, ale musze tak zrobic bo jak inaczej dodam typ dla każdego identifiera z grupy huh?
 	for i := range params {
 		params[i].Type = *paramsType
 	}
-
 	return params
 }
 
 // type_annotation = "int" | "float" | "bool" | "str" ;
-func (p *Parser) parseType() *lex.TokenTypes {
+func (p *Parser) parseTypeAnnotation() *lex.TokenTypes {
 	switch token := p.token.Type; token {
 	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
 		typ := p.token.Type
@@ -150,15 +141,80 @@ func (p *Parser) parseType() *lex.TokenTypes {
 		return &typ
 	}
 
-	// if p.token.Type == lex.INT || p.token.Type == lex.FLOAT || p.token.Type == lex.BOOL || p.token.Type == lex.STRING {
-	// 	typ := p.token.Type
-	// 	p.consumeToken()
-	// 	return &typ
-	// }
-    
 	return nil
 }
 
+// block = "{" , { statement } , "}" ;
 func (p *Parser) parseBlock() *Block {
-	return nil
+	p.requierAndConsume(lex.LEFT_BRACE, SYNTAX_ERROR_NO_BLOCK)
+
+	statements := []Statement{}
+
+	for p.token.Type != lex.RIGHT_BRACE {
+		statement := p.parseStatement()
+
+		// czy my chcemy żeby statement był nil??
+		if statement != nil {
+			statements = append(statements, statement)
+		}
+	}
+	p.requierAndConsume(lex.RIGHT_BRACE, SYNTAX_ERROR_EXPECTED_RIGHT_BRACE)
+
+	return &Block{Statements: statements}
 }
+
+// statement = variable_declaration | assigment | conditional_statement | loop_statement | switch_statement | return_statement ;
+func (p *Parser) parseStatement() Statement {
+	switch p.token.Type {
+	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
+		return p.parseVariableDeclaration()
+	// case lex.IDENTIFIER:
+	// 	return p.parseAssignment()
+	// case lex.IF:
+	// 	return p.parseConditionalStatement()
+	// case lex.WHILE:
+	// 	return p.parseLoopStatement()
+	// case lex.SWITCH:
+	// 	return p.parseSwitchStatement()
+	// case lex.RETURN:
+	// 	return p.parseReturnStatement()
+	default:
+		// czy na pewno chcemy nil?? moze jednak panic?
+		return nil // panic(fmt.Errorf(SYNTAX_ERROR_UNKNOWN_STATEMENT, p.token.Position.Column, p.token.Position.Line))
+	}
+}
+
+// variable_declaration  = type_annotation, identifier, ":=", expression ;
+func (p *Parser) parseVariableDeclaration() Statement {
+	typeAnnotation := p.parseTypeAnnotation()
+	identifier := p.requierAndConsume(lex.IDENTIFIER, SYNTAX_ERROR_NO_VARIABLE_IDETIFIER)
+	p.requierAndConsume(lex.DECLARE, SYNTAX_ERROR_MISSING_COLON_ASSIGN)
+	expression := p.parseExpression()
+
+	variable := newVariable(*typeAnnotation, identifier.Value.(string), expression)
+	return &variable
+}
+
+// identifier_or_call = identifier, [ "(", [ argumets ], ")" ] ;
+func (p *Parser) parseIdentifierOrCall() {}
+
+// assigment = identifier_or_call,  [ "=", expression ] ;
+func (p *Parser) parseAssignment() {}
+
+// conditional_statement = "if" , expression , block , [ "else" , block ] ;
+func (p *Parser) parseConditionalStatement() {}
+
+// loop_statement = "while" , expression, block ;
+func (p *Parser) parseLoopStatement() {}
+
+// switch_statement = "switch", ( variable_declaration, { ",", variable_declaraion } ) | expression, "{", switch_case, { ",", switch_case "}" ;
+func (p *Parser) parseSwitchStatement() {}
+
+// switch_case = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ), } ;
+func (p *Parser) parseSwitchCase() {}
+
+// return_statement = "return" , [ expression ] ;
+func (p *Parser) parseReturnStatement() {}
+
+// expression = conjunction_term, { "or", conjunction_term } ;
+func (p *Parser) parseExpression() int { return 0 }

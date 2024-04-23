@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-const WRONG_TYPE_ERROR = "wrong type to token type match, expected: %s, got: %s"
+const WRONG_TYPE_ERROR = "wrong value type to token type match, expected: %s, got: %s"
 
 type Position struct {
 	Line   int
@@ -40,8 +40,8 @@ func convertValue(value any, expectedType reflect.Kind) (any, error) {
 	return nil, fmt.Errorf(WRONG_TYPE_ERROR, expectedType, value)
 }
 
-func NewToken(token_type TokenTypes, position Position, value any) *Token {
-	switch token_type {
+func NewToken(tokenType TokenTypes, position Position, value any) *Token {
+	switch tokenType {
 	case CONST_INT:
 		v, err := convertValue(value, reflect.Int)
 		if err != nil {
@@ -54,13 +54,7 @@ func NewToken(token_type TokenTypes, position Position, value any) *Token {
 			panic(err)
 		}
 		value = v
-	case CONST_STRING:
-		v, err := convertValue(value, reflect.String)
-		if err != nil {
-			panic(err)
-		}
-		value = v
-	case IDENTIFIER:
+	case CONST_STRING, IDENTIFIER:
 		v, err := convertValue(value, reflect.String)
 		if err != nil {
 			panic(err)
@@ -68,7 +62,7 @@ func NewToken(token_type TokenTypes, position Position, value any) *Token {
 		value = v
 	}
 	return &Token{
-		Type:     token_type,
+		Type:     tokenType,
 		Position: position,
 		Value:    value,
 	}

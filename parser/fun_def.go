@@ -4,18 +4,18 @@ import lex "tkom/lexer"
 
 type FunDef struct {
 	Name       string
-	parameters []Parameter
-	block      Block
-	Type       lex.TokenTypes
+	Parameters []Variable
+	Block      Block
+	Type       *lex.TokenType
 	Position   lex.Position
 }
 
-func NewFunctionDefinition(name string, parameters []Parameter, funType *lex.TokenTypes, block *Block, position lex.Position) *FunDef {
+func NewFunctionDefinition(name string, parameters []Variable, funType *lex.TokenType, block Block, position lex.Position) *FunDef {
 	return &FunDef{
 		Name:       name,
-		Type:       *funType,
-		parameters: parameters,
-		block:      *block,
+		Type:       funType,
+		Parameters: parameters,
+		Block:      block,
 		Position:   position,
 	}
 }

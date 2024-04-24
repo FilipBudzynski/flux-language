@@ -5,6 +5,7 @@ import "tkom/lexer"
 // czy to jest aby na pewno dobrze?
 type Expression struct {
 	Conjunctions []*Conjunction
+	Value        any
 }
 
 type Conjunction struct {
@@ -41,10 +42,10 @@ type Term struct {
 	Expression    *Expression
 	CastedTerm    *CastedTerm
 	Parenthesized *Expression // This will be nil if the term is not parenthesized
-	String  string
-	Bool    bool
-	Integer int
-	Float   float64
+	String        string
+	Bool          bool
+	Integer       int
+	Float         float64
 }
 
 type IdentifierOrCall struct {
@@ -58,5 +59,5 @@ type CastedTerm struct {
 }
 
 type TypeAnnotation struct {
-	Type lexer.TokenTypes // This will store one of: INT, FLOAT, BOOL, STRING
+	Type lexer.TokenType // This will store one of: INT, FLOAT, BOOL, STRING
 }

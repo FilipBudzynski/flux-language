@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 	lex "tkom/lexer"
 )
 
@@ -24,7 +25,7 @@ func (p *Parser) consumeToken() {
 	p.token = *p.lexer.GetNextToken()
 }
 
-func (p *Parser) requierAndConsume(tokenType lex.TokenTypes, syntaxErrMessage string) lex.Token {
+func (p *Parser) requierAndConsume(tokenType lex.TokenType, syntaxErrMessage string) lex.Token {
 	token := p.token
 	if token.Type != tokenType {
 		panic(fmt.Errorf(syntaxErrMessage, token.Position.Column, token.Position.Line))
@@ -71,26 +72,26 @@ func (p *Parser) parseFunDef() *FunDef {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
-	name, pos := p.parseIdentifier()
+	name := p.token.Value.(string)
+	possition := p.token.Position
+
+	p.consumeToken()
 	p.requierAndConsume(lex.LEFT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
 	params := p.parseParameters()
 	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
 	funcType := p.parseTypeAnnotation()
 	block := p.parseBlock()
-	if block == nil {
-		panic(fmt.Errorf(SYNTAX_ERROR_NO_BLOCK, p.token.Position.Column, p.token.Position.Line))
-	}
 
-	return NewFunctionDefinition(name, params, funcType, block, pos)
+	return NewFunctionDefinition(name, params, funcType, block, possition)
 }
 
 // parameters = parameter_group , { "," , parameter_group } ;
-func (p *Parser) parseParameters() []Parameter {
+func (p *Parser) parseParameters() []Variable {
 	paramGroup := p.parseParameterGroup()
 	if paramGroup == nil {
 		return nil
 	}
-	parameters := []Parameter{}
+	parameters := []Variable{}
 	parameters = append(parameters, paramGroup...)
 
 	for p.token.Type == lex.COMMA {
@@ -105,47 +106,59 @@ func (p *Parser) parseParameters() []Parameter {
 }
 
 // parameter_group = identifier , { ",", identifier }, type_annotation ;
-func (p *Parser) parseParameterGroup() []Parameter {
+func (p *Parser) parseParameterGroup() []Variable {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
-	params := []Parameter{}
-	params = append(params, NewParameter(p.parseIdentifier()))
 
+	type Tuple struct {
+		Name     string
+		Position lex.Position
+	}
+
+	name := p.token.Value.(string)
+	possition := p.token.Position
+
+	namesAndPositions := []Tuple{}
+	namesAndPositions = append(namesAndPositions, Tuple{Name: name, Position: possition})
+
+	p.consumeToken()
 	for p.token.Type == lex.COMMA {
 		p.consumeToken()
 		if p.token.Type != lex.IDENTIFIER {
 			panic(fmt.Errorf(SYNTAX_ERROR_NO_IDENTIFIER, p.token.Position.Column, p.token.Position.Line))
 		}
-		params = append(params, NewParameter(p.parseIdentifier()))
+		name := p.token.Value.(string)
+		possition := p.token.Position
+		namesAndPositions = append(namesAndPositions, Tuple{Name: name, Position: possition})
+		p.consumeToken()
 	}
-
 	paramsType := p.parseTypeAnnotation()
 
 	if paramsType == nil {
 		panic(fmt.Errorf(SYNTAX_ERROR_NO_TYPE, p.token.Position.Column, p.token.Position.Line))
 	}
+	params := []Variable{}
 
-	for i := range params {
-		params[i].Type = *paramsType
+	for _, t := range namesAndPositions {
+		params = append(params, newVariable(*paramsType, newIdentifier(t.Name, t.Position), nil))
 	}
 	return params
 }
 
 // type_annotation = "int" | "float" | "bool" | "str" ;
-func (p *Parser) parseTypeAnnotation() *lex.TokenTypes {
+func (p *Parser) parseTypeAnnotation() *lex.TokenType {
 	switch token := p.token.Type; token {
 	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
 		typ := p.token.Type
 		p.consumeToken()
 		return &typ
 	}
-
 	return nil
 }
 
 // block = "{" , { statement } , "}" ;
-func (p *Parser) parseBlock() *Block {
+func (p *Parser) parseBlock() Block {
 	p.requierAndConsume(lex.LEFT_BRACE, SYNTAX_ERROR_NO_BLOCK)
 
 	statements := []Statement{}
@@ -160,7 +173,7 @@ func (p *Parser) parseBlock() *Block {
 	}
 	p.requierAndConsume(lex.RIGHT_BRACE, SYNTAX_ERROR_EXPECTED_RIGHT_BRACE)
 
-	return &Block{Statements: statements}
+	return Block{Statements: statements}
 }
 
 // statement = variable_declaration | assigment | conditional_statement | loop_statement | switch_statement | return_statement ;
@@ -168,8 +181,8 @@ func (p *Parser) parseStatement() Statement {
 	switch p.token.Type {
 	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
 		return p.parseVariableDeclaration()
-	// case lex.IDENTIFIER:
-	// 	return p.parseAssignment()
+	case lex.IDENTIFIER:
+		return p.parseIdentifierOrCall()
 	// case lex.IF:
 	// 	return p.parseConditionalStatement()
 	// case lex.WHILE:
@@ -187,19 +200,88 @@ func (p *Parser) parseStatement() Statement {
 // variable_declaration  = type_annotation, identifier, ":=", expression ;
 func (p *Parser) parseVariableDeclaration() Statement {
 	typeAnnotation := p.parseTypeAnnotation()
-	identifier := p.requierAndConsume(lex.IDENTIFIER, SYNTAX_ERROR_NO_VARIABLE_IDETIFIER)
+	identifierToken := p.requierAndConsume(lex.IDENTIFIER, SYNTAX_ERROR_NO_VARIABLE_IDETIFIER)
 	p.requierAndConsume(lex.DECLARE, SYNTAX_ERROR_MISSING_COLON_ASSIGN)
 	expression := p.parseExpression()
 
-	variable := newVariable(*typeAnnotation, identifier.Value.(string), expression)
-	return &variable
+	// na pewno???
+	// if expression == nil {
+	//     panic(fmt.Sprintf(SYNTAX_ERROR_NO_EXPRESSION_IN_DECLARATION, p.token.Position.Column, p.token.Position.Line))
+	// }
+
+	name := identifierToken.Value.(string)
+	position := identifierToken.Position
+	identifier := newIdentifier(name, position)
+	variable := newVariable(*typeAnnotation, identifier, expression)
+	return variable
+}
+
+// assigment = identifier_or_call,  [ "=", expression ] ;
+func (p *Parser) parseAssignment() Statement {
+	identifierOrCall := p.parseIdentifierOrCall()
+
+	if p.token.Type != lex.ASSIGN {
+		return identifierOrCall
+	}
+
+	// illigal assigment to function call
+	if reflect.TypeOf(identifierOrCall) != reflect.TypeOf(Identifier{}) {
+		panic(fmt.Sprintf(ERROR_ASIGNMENT_TO_FUNCTION_CALL, p.token.Position.Column, p.token.Position.Line))
+	}
+
+	return identifierOrCall
 }
 
 // identifier_or_call = identifier, [ "(", [ argumets ], ")" ] ;
-func (p *Parser) parseIdentifierOrCall() {}
+func (p *Parser) parseIdentifierOrCall() Statement {
+	if p.token.Type != lex.IDENTIFIER {
+		return nil
+	}
+	identifier := newIdentifier(p.token.Value.(string), p.token.Position)
 
-// assigment = identifier_or_call,  [ "=", expression ] ;
-func (p *Parser) parseAssignment() {}
+	if statement := p.parseFunctionCall(identifier); statement == nil {
+		return identifier
+	}
+	return newFunctionCall(identifier, nil, identifier.Position)
+}
+
+func (p *Parser) parseFunctionCall(identifier Identifier) Statement {
+	if p.token.Type != lex.RIGHT_PARENTHESIS {
+		return nil
+	}
+	p.consumeToken()
+	arguments := p.parseArguments()
+
+	if p.token.Type != lex.RIGHT_PARENTHESIS {
+		panic(fmt.Sprintf(SYNTAX_ERROR_FUNC_CALL_NOT_CLOSED, p.token.Position.Column, p.token.Position.Line))
+	}
+
+	return newFunctionCall(identifier, arguments, identifier.Position)
+}
+
+// arguments = expression , { "," , expression } ;
+func (p *Parser) parseArguments() []Variable { // return []Variable czy []Expression ??
+	validExpressionTypes := map[lex.TokenType]bool{
+		lex.CONST_INT:    true,
+		lex.CONST_FLOAT:  true,
+		lex.CONST_FALSE:  true,
+		lex.CONST_TRUE:   true,
+		lex.CONST_STRING: true,
+		lex.IDENTIFIER:   true,
+	}
+	if !validExpressionTypes[p.token.Type] {
+		return nil
+	}
+
+	expressions := []Variable{}
+	expression := p.parseExpression()
+	expressions = append(expressions, expression)
+
+	for p.token.Type == lex.COMMA {
+		p.consumeToken()
+	}
+	return expressions
+}
 
 // conditional_statement = "if" , expression , block , [ "else" , block ] ;
 func (p *Parser) parseConditionalStatement() {}
@@ -217,4 +299,4 @@ func (p *Parser) parseSwitchCase() {}
 func (p *Parser) parseReturnStatement() {}
 
 // expression = conjunction_term, { "or", conjunction_term } ;
-func (p *Parser) parseExpression() int { return 0 }
+func (p *Parser) parseExpression() Variable { return Variable{} }

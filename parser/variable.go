@@ -10,39 +10,39 @@ const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in vari
 
 type Variable struct {
 	Value     any
-	Idetifier string
-	Type      lex.TokenTypes
+	Idetifier Identifier
+	Type      lex.TokenType
 }
 
-func (v *Variable) Accept() {}
+func newVariable(variableType lex.TokenType, identifier Identifier, value any) Variable {
 
-func newVariable(variableType lex.TokenTypes, identifier string, value any) Variable {
-	switch variableType {
-	case lex.INT:
-		v, err := convertValue(value, reflect.Int)
-		if err != nil {
-			panic(err)
-		}
-		value = v
-	case lex.FLOAT:
-		v, err := convertValue(value, reflect.Float64)
-		if err != nil {
-			panic(err)
-		}
-		value = v
-	case lex.BOOL:
-		v, err := convertValue(value, reflect.Bool)
-		if err != nil {
-			panic(err)
-		}
-		value = v
-	case lex.STRING:
-		v, err := convertValue(value, reflect.String)
-		if err != nil {
-			panic(err)
-		}
-		value = v
-	}
+	// switch variableType {
+	// case lex.INT:
+	// 	v, err := convertValue(value, reflect.Int)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	value = v
+	// case lex.FLOAT:
+	// 	v, err := convertValue(value, reflect.Float64)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	value = v
+	// case lex.BOOL:
+	// 	v, err := convertValue(value, reflect.Bool)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	value = v
+	// case lex.STRING:
+	// 	v, err := convertValue(value, reflect.String)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	value = v
+	// }
+
 	return Variable{
 		Type:      variableType,
 		Idetifier: identifier,

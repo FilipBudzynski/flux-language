@@ -18,7 +18,7 @@ func NewPosition(line, column int) Position {
 
 type Token struct {
 	Value    any
-	Type     TokenTypes
+	Type     TokenType
 	Position Position
 }
 
@@ -40,7 +40,7 @@ func convertValue(value any, expectedType reflect.Kind) (any, error) {
 	return nil, fmt.Errorf(WRONG_TYPE_ERROR, expectedType, value)
 }
 
-func NewToken(tokenType TokenTypes, position Position, value any) *Token {
+func NewToken(tokenType TokenType, position Position, value any) *Token {
 	switch tokenType {
 	case CONST_INT:
 		v, err := convertValue(value, reflect.Int)
@@ -68,11 +68,11 @@ func NewToken(tokenType TokenTypes, position Position, value any) *Token {
 	}
 }
 
-func (b *Token) GetType() TokenTypes {
+func (b *Token) GetType() TokenType {
 	return b.Type
 }
 
-var Operators = map[rune]TokenTypes{
+var Operators = map[rune]TokenType{
 	'+': PLUS,
 	'-': MINUS,
 	'*': MULTIPLY,
@@ -88,7 +88,7 @@ var Operators = map[rune]TokenTypes{
 	'!': NEGATE,
 }
 
-var KeyWords = map[string]TokenTypes{
+var KeyWords = map[string]TokenType{
 	"int":     INT,
 	"string":  STRING,
 	"float":   FLOAT,
@@ -105,7 +105,7 @@ var KeyWords = map[string]TokenTypes{
 	"or":      OR,
 }
 
-var DoubleOperators = map[string]TokenTypes{
+var DoubleOperators = map[string]TokenType{
 	"<=": LESS_OR_EQUAL,
 	">=": GREATER_OR_EQUAL,
 	"==": EQUALS,
@@ -114,10 +114,10 @@ var DoubleOperators = map[string]TokenTypes{
 	":=": DECLARE,
 }
 
-type TokenTypes int
+type TokenType int
 
 const (
-	IDENTIFIER TokenTypes = iota
+	IDENTIFIER TokenType = iota
 	CONST_INT
 	CONST_FLOAT
 	CONST_STRING
@@ -214,7 +214,7 @@ var tokenTypeNames = [...]string{
 	"UNDEFINED",
 }
 
-func (t TokenTypes) TypeName() string {
+func (t TokenType) TypeName() string {
 	if t < 0 || int(t) >= len(tokenTypeNames) {
 		return "UNKNOWN"
 	}

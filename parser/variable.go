@@ -15,34 +15,6 @@ type Variable struct {
 }
 
 func newVariable(variableType lex.TokenType, identifier Identifier, value any) Variable {
-
-	// switch variableType {
-	// case lex.INT:
-	// 	v, err := convertValue(value, reflect.Int)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	value = v
-	// case lex.FLOAT:
-	// 	v, err := convertValue(value, reflect.Float64)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	value = v
-	// case lex.BOOL:
-	// 	v, err := convertValue(value, reflect.Bool)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	value = v
-	// case lex.STRING:
-	// 	v, err := convertValue(value, reflect.String)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	value = v
-	// }
-
 	return Variable{
 		Type:      variableType,
 		Idetifier: identifier,
@@ -66,4 +38,16 @@ func convertValue(value any, expectedType reflect.Kind) (any, error) {
 		}
 	}
 	return nil, fmt.Errorf(ERROR_WRONG_VALUE_IN_DECLARATION, expectedType, value)
+}
+
+type Assignemnt struct {
+	Identifier Identifier
+	Value      Expression
+}
+
+func NewAssignment(identifier Identifier, value Expression) Assignemnt {
+	return Assignemnt{
+		Identifier: identifier,
+		Value:      value,
+	}
 }

@@ -13,4 +13,5 @@ const (
 	SYNTAX_ERROR_MISSING_COLON_ASSIGN    = "error [%v, %v]: missing ':' after identifier in variable declaration"
 	SYNTAX_ERROR_FUNC_CALL_NOT_CLOSED    = "error [%v, %v]: function call not closed, perhaps you forgot '('"
 	ERROR_ASIGNMENT_TO_FUNCTION_CALL     = "error [%v, %v]: cannot assign value to function call"
+	ERROR_MISSING_EXPRESSION             = "error [%v, %v]: missing expression"
 )

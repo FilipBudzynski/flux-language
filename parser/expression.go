@@ -1,63 +1,74 @@
 package parser
 
-import "tkom/lexer"
+import lex "tkom/lexer"
 
-// czy to jest aby na pewno dobrze?
-type Expression struct {
-	Conjunctions []*Conjunction
-	Value        any
+type Operation int
+
+const (
+	OR Operation = iota
+	AND
+	PLUS
+	MINUS
+	MULTIPLY
+	DIVIDE
+	EQUALS
+	NOT_EQUALS
+	GREATER_THAN
+	LESS_THAN
+	GREATER_OR_EQUAL
+	LESS_OR_EQUAL
+    NEGATE
+	AS
+)
+
+type Expression interface{}
+
+type OperationExpression struct {
+	LeftExpression  Expression
+	RightExpression Expression
+	Operation       Operation
 }
 
-type Conjunction struct {
-	RelationTerms []*RelationTerm
-	Operators     []string
+func NewExpression(leftExpression Expression, operation Operation, rightExpression Expression) *OperationExpression {
+	return &OperationExpression{
+		LeftExpression:  leftExpression,
+		Operation:       operation,
+		RightExpression: rightExpression,
+	}
 }
 
-type RelationTerm struct {
-	Operator      *RelationOperator // This will be nil if no relation operator is present
-	AdditiveTerms []*AdditiveTerm
-}
-
-type RelationOperator struct {
-	Operator string // This will store one of: ">=", ">", "<=", "<", "==", "!="
-}
-
-type AdditiveTerm struct {
-	MultiplicativeTerms []*MultiplicativeTerm
-	Operators           []string // This will store "+" or "-" operators between terms
-}
-
-type MultiplicativeTerm struct {
-	UnaryOperators []*UnaryOperator
-	Operators      []string // This will store "*" or "/" operators between terms
-}
-
-type UnaryOperator struct {
-	Term   *Term
-	Negate bool // Indicates if the operator is a "-" or "!"
-}
-
-type Term struct {
-	Identifier    *IdentifierOrCall
-	Expression    *Expression
-	CastedTerm    *CastedTerm
-	Parenthesized *Expression // This will be nil if the term is not parenthesized
-	String        string
-	Bool          bool
-	Integer       int
-	Float         float64
-}
-
-type IdentifierOrCall struct {
-	Identifier string
-	// Arguments  []*Argument // This will be nil if no arguments are present
-}
-
-type CastedTerm struct {
-	Term       *Term
-	Annotation *TypeAnnotation // This will be nil if no type annotation is present
-}
-
-type TypeAnnotation struct {
-	Type lexer.TokenType // This will store one of: INT, FLOAT, BOOL, STRING
-}
+//TODO: is it even needed???
+//
+// type CastedTerm struct {
+// 	Term           *UnaryTerm
+// 	TypeAnnotation *lex.TokenType
+// }
+//
+// func NewCastedTerm(term *UnaryTerm, typeAnnotation *lex.TokenType) *CastedTerm {
+// 	return &CastedTerm{
+// 		Term:           term,
+// 		TypeAnnotation: typeAnnotation,
+// 	}
+// }
+//
+// type UnaryTerm struct {
+// 	Value  any
+// 	Negate *lex.TokenType
+// }
+//
+// func NewUnaryTerm(value any, negate *lex.TokenType) *UnaryTerm {
+// 	return &UnaryTerm{
+// 		Value:  value,
+// 		Negate: negate,
+// 	}
+// }
+//
+// type Term struct {
+// 	Value any
+// }
+//
+// func NewTerm(value any) *Term {
+// 	return &Term{
+// 		Value: value,
+// 	}
+// }

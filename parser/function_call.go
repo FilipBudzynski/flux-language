@@ -4,14 +4,14 @@ import lex "tkom/lexer"
 
 type FunctionCall struct {
 	Identifier Identifier
-	Arguments  []Variable
+	Arguments  []Expression
 	Position   lex.Position
 }
 
-func newFunctionCall(identifier Identifier, arguments []Variable, position lex.Position) FunctionCall {
+func newFunctionCall(identifier Identifier, arguments []Expression, position lex.Position) FunctionCall {
 	return FunctionCall{
 		Identifier: identifier,
 		Arguments:  arguments,
-        Position: position,
+		Position:   position,
 	}
 }

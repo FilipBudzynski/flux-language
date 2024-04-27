@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -161,5 +162,46 @@ func TestParseEmptyFunctionDefinition(t *testing.T) {
 
 	if !isFunctionDefinitionEqual(t, *functionDefinition, *expected) {
 		t.Errorf("function definitions are not equal, expected: %v, got: %v", functionDefinition, expected)
+	}
+}
+
+func TestParseExpression(t *testing.T) {
+	input := "identifier1"
+	expected := newIdentifier("identifier1", lexer.NewPosition(1, 1))
+
+	lex := createLexer(input)
+	errorHandler := func(err error) {
+		t.Errorf("Parse Identifier error: %v", err)
+	}
+	parser := NewParser(lex, errorHandler)
+
+	expression := parser.parseOrCondition()
+
+	if expression != expected {
+		t.Errorf("expressions are not equal, expected: %v, got: %v", expected, expression)
+	}
+}
+
+func TestParseExpressionGreater(t *testing.T) {
+	input := "a > 2"
+	expected := NewExpression(newIdentifier("a", lexer.NewPosition(1, 1)), GREATER_THAN, 2)
+
+	lex := createLexer(input)
+	errorHandler := func(err error) {
+		t.Errorf("Parse Identifier error: %v", err)
+	}
+	parser := NewParser(lex, errorHandler)
+
+	expression := parser.parseOrCondition()
+
+	expressionOpExpr, ok := expression.(*OperationExpression)
+	if !ok {
+		t.Errorf("Parsed expression is not of type OperationExpression")
+		return
+	}
+    log.Print(expressionOpExpr)
+
+	if !reflect.DeepEqual(expected, expressionOpExpr) {
+		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, expressionOpExpr)
 	}
 }

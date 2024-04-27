@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"reflect"
 	lex "tkom/lexer"
 )
 
@@ -218,24 +217,42 @@ func (p *Parser) parseVariableDeclaration() Statement {
 
 // assigment = identifier_or_call,  [ "=", expression ] ;
 func (p *Parser) parseAssignment() Statement {
-
-    //TODO: troche lipa, trzeba tutaj miec pewnosc ze zrobimy assigment z identifierem
-	identifierOrCall := p.parseIdentifierOrCall()
-
-	if p.token.Type != lex.ASSIGN {
-		return identifierOrCall
+	if p.token.Type != lex.IDENTIFIER {
+		return nil
 	}
 
-	// illigal assigment to function call
-	// nie wiem czy to tutaj robic czy dopiero w interpreterze ale na razie zostawiam
-	if reflect.TypeOf(identifierOrCall) != reflect.TypeOf(Identifier{}) {
-		panic(fmt.Sprintf(ERROR_ASIGNMENT_TO_FUNCTION_CALL, p.token.Position.Column, p.token.Position.Line))
+	identifier := newIdentifier(p.token.Value.(string), p.token.Position)
+	p.consumeToken()
+
+	if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
+		return functionCall
+	}
+
+	if p.token.Type != lex.ASSIGN {
+		return identifier
 	}
 
 	p.consumeToken()
+
 	expression := p.parseOrCondition()
 
-	return NewAssignment(identifierOrCall, expression)
+	//TODO: troche lipa, trzeba tutaj miec pewnosc ze zrobimy assigment z identifierem
+	// identifierOrCall := p.parseIdentifierOrCall()
+	//
+	// if p.token.Type != lex.ASSIGN {
+	// 	return identifierOrCall
+	// }
+	//
+	// // illigal assigment to function call
+	// // nie wiem czy to tutaj robic czy dopiero w interpreterze ale na razie zostawiam
+	// if reflect.TypeOf(identifierOrCall) != reflect.TypeOf(Identifier{}) {
+	// 	panic(fmt.Sprintf(ERROR_ASIGNMENT_TO_FUNCTION_CALL, p.token.Position.Column, p.token.Position.Line))
+	// }
+	//
+	// p.consumeToken()
+	// expression := p.parseOrCondition()
+
+	return NewAssignment(identifier, expression)
 }
 
 // identifier_or_call = identifier, [ "(", [ argumets ], ")" ] ;
@@ -248,10 +265,10 @@ func (p *Parser) parseIdentifierOrCall() Statement {
 	p.consumeToken()
 
 	if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
-        return functionCall
-    }
+		return functionCall
+	}
 
-    return identifier
+	return identifier
 }
 
 func (p *Parser) parseFunctionCall(identifier Identifier) Statement {
@@ -344,6 +361,7 @@ func (p *Parser) parseRelationCondition() Expression {
 		return leftExpression
 	}
 	operation := validOperators[p.token.Type]
+    p.consumeToken()
 
 	rightExpression := p.parsePlusOrMinus()
 	if rightExpression == nil {
@@ -406,6 +424,8 @@ func (p *Parser) parseMultiplyCondition() Expression {
 // casted_term = unary_operator, [ "as", type_annotation ] ;
 func (p *Parser) parseCastCondition() Expression {
 	unaryTerm := p.parseUnaryOperator()
+
+	// TODO: nie moze byc nil, to oznacza ze nic nie sparsowalismy
 	if unaryTerm == nil {
 		return nil
 	}
@@ -418,6 +438,7 @@ func (p *Parser) parseCastCondition() Expression {
 	// TODO: czy na pewno casted terma moge zwracac jako expression???
 	return NewExpression(unaryTerm, AS, typeAnnotation)
 }
+
 
 // unary_operator = [ ("-" | "!") ], term ;
 func (p *Parser) parseUnaryOperator() Expression {
@@ -438,8 +459,17 @@ func (p *Parser) parseTerm() Expression {
 		identifier := newIdentifier(name, position)
 		if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
 			return functionCall
-        }
+		}
 		return identifier
+	case lex.CONST_INT:
+        return p.token.Value.(int) 
+	case lex.CONST_FLOAT:
+	case lex.CONST_TRUE:
+	case lex.CONST_FALSE:
+	case lex.CONST_STRING:
+	case lex.LEFT_PARENTHESIS:
+	default:
+		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
 	}
 	return nil
 }

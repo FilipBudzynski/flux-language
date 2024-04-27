@@ -1,11 +1,14 @@
 package parser
 
-import lex "tkom/lexer"
+// import lex "tkom/lexer"
 
-type Operation int
+type (
+	Operation     interface{}
+	OperationType int
+)
 
 const (
-	OR Operation = iota
+	OR OperationType = iota
 	AND
 	PLUS
 	MINUS
@@ -17,17 +20,18 @@ const (
 	LESS_THAN
 	GREATER_OR_EQUAL
 	LESS_OR_EQUAL
-    NEGATE
+	NEGATE
 	AS
 )
 
-type Expression interface{}
-
-type OperationExpression struct {
-	LeftExpression  Expression
-	RightExpression Expression
-	Operation       Operation
-}
+type (
+	Expression          interface{}
+	OperationExpression struct {
+		LeftExpression  Expression
+		RightExpression Expression
+		Operation       Operation
+	}
+)
 
 func NewExpression(leftExpression Expression, operation Operation, rightExpression Expression) *OperationExpression {
 	return &OperationExpression{

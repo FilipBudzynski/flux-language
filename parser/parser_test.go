@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"log"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,6 +11,14 @@ import (
 func createLexer(input string) *lexer.Lexer {
 	source, _ := lexer.NewScanner(strings.NewReader(input))
 	return lexer.NewLexer(source, 1000, 1000, 1000)
+}
+
+func craeateParser(t *testing.T, input string) *Parser {
+	lex := createLexer(input)
+	errorHandler := func(err error) {
+		t.Errorf("Parse Identifier error: %v", err)
+	}
+	return NewParser(lex, errorHandler)
 }
 
 func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef) bool {
@@ -48,7 +55,7 @@ func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef
 }
 
 // Helper function to test equality of slices
-func isSliceEqual(t *testing.T, slice1, slice2 []Variable) bool {
+func isSliceEqual(t *testing.T, slice1, slice2 []*Variable) bool {
 	if len(slice1) != len(slice2) {
 		t.Errorf("slice length mismatch: %d != %d", len(slice1), len(slice2))
 		return false
@@ -78,15 +85,16 @@ func TestParseParameterGroup(t *testing.T) {
 		t.Errorf("Expected 3 parameters, got %d", len(params))
 	}
 
-	expected := []Variable{
-		newVariable(lexer.STRING, newIdentifier("param1", lexer.NewPosition(1, 1)), nil),
-		newVariable(lexer.STRING, newIdentifier("param2", lexer.NewPosition(1, 9)), nil),
-		newVariable(lexer.STRING, newIdentifier("param3", lexer.NewPosition(1, 17)), nil),
+	expected := []*Variable{
+		NewVariable(lexer.STRING, NewIdentifier("param1", lexer.NewPosition(1, 1)), nil),
+		NewVariable(lexer.STRING, NewIdentifier("param2", lexer.NewPosition(1, 9)), nil),
+		NewVariable(lexer.STRING, NewIdentifier("param3", lexer.NewPosition(1, 17)), nil),
 	}
 
 	for i, param := range params {
-		if param != expected[i] {
+		if !reflect.DeepEqual(param, expected[i]) {
 			t.Errorf("Expected %d parameters, got %d", len(expected), len(params))
+            t.Errorf("expected variable: %v, got: %v", expected[i], param)
 		}
 		if param.Type != expected[i].Type {
 			t.Errorf("Expected parameter type %v, got %v", expected[i].Type, param.Type)
@@ -108,10 +116,10 @@ func TestParseParameters(t *testing.T) {
 		t.Log(param)
 	}
 
-	expected := []Variable{
-		newVariable(lexer.INT, newIdentifier("param1", lexer.NewPosition(1, 1)), nil),
-		newVariable(lexer.STRING, newIdentifier("param2", lexer.NewPosition(1, 13)), nil),
-		newVariable(lexer.BOOL, newIdentifier("param3", lexer.NewPosition(1, 28)), nil),
+	expected := []*Variable{
+		NewVariable(lexer.INT, NewIdentifier("param1", lexer.NewPosition(1, 1)), nil),
+		NewVariable(lexer.STRING, NewIdentifier("param2", lexer.NewPosition(1, 13)), nil),
+		NewVariable(lexer.BOOL, NewIdentifier("param3", lexer.NewPosition(1, 28)), nil),
 	}
 
 	if len(params) != len(expected) {
@@ -131,7 +139,7 @@ func TestParseParameters(t *testing.T) {
 
 func TestParseIdentifier(t *testing.T) {
 	input := "identifier1"
-	expected := newIdentifier("identifier1", lexer.NewPosition(1, 1))
+	expected := NewIdentifier("identifier1", lexer.NewPosition(1, 1))
 	lex := createLexer(input)
 	errorHandler := func(err error) {
 		t.Errorf("Parse Identifier error: %v", err)
@@ -147,9 +155,9 @@ func TestParseIdentifier(t *testing.T) {
 
 func TestParseEmptyFunctionDefinition(t *testing.T) {
 	input := "myFunction(a int, b string) { }"
-	variable1 := newVariable(lexer.INT, newIdentifier("a", lexer.NewPosition(1, 12)), nil)
-	variable2 := newVariable(lexer.STRING, newIdentifier("b", lexer.NewPosition(1, 19)), nil)
-	parameters := []Variable{variable1, variable2}
+	variable1 := NewVariable(lexer.INT, NewIdentifier("a", lexer.NewPosition(1, 12)), nil)
+	variable2 := NewVariable(lexer.STRING, NewIdentifier("b", lexer.NewPosition(1, 19)), nil)
+	parameters := []*Variable{variable1, variable2}
 	expected := NewFunctionDefinition("myFunction", parameters, nil, Block{Statements: []Statement{}}, lexer.NewPosition(1, 1))
 
 	lex := createLexer(input)
@@ -165,9 +173,9 @@ func TestParseEmptyFunctionDefinition(t *testing.T) {
 	}
 }
 
-func TestParseExpression(t *testing.T) {
+func TestParseExpressionIdentifierOnly(t *testing.T) {
 	input := "identifier1"
-	expected := newIdentifier("identifier1", lexer.NewPosition(1, 1))
+	expected := NewIdentifier("identifier1", lexer.NewPosition(1, 1))
 
 	lex := createLexer(input)
 	errorHandler := func(err error) {
@@ -183,8 +191,8 @@ func TestParseExpression(t *testing.T) {
 }
 
 func TestParseExpressionGreater(t *testing.T) {
-	input := "a > 2"
-	expected := NewExpression(newIdentifier("a", lexer.NewPosition(1, 1)), GREATER_THAN, 2)
+	input := "a >= 2"
+	expected := NewExpression(NewIdentifier("a", lexer.NewPosition(1, 1)), GREATER_OR_EQUAL, 2)
 
 	lex := createLexer(input)
 	errorHandler := func(err error) {
@@ -194,14 +202,37 @@ func TestParseExpressionGreater(t *testing.T) {
 
 	expression := parser.parseOrCondition()
 
-	expressionOpExpr, ok := expression.(*OperationExpression)
+	expressionOpExpr, ok := expression.(OperationExpression)
 	if !ok {
 		t.Errorf("Parsed expression is not of type OperationExpression")
 		return
 	}
-    log.Print(expressionOpExpr)
 
 	if !reflect.DeepEqual(expected, expressionOpExpr) {
 		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, expressionOpExpr)
+        t.Errorf("Actual type: %v", reflect.TypeOf(expressionOpExpr))
+        t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+	}
+}
+
+func TestParseVariableDeclaration(t *testing.T) {
+	input := "int a := 2 - 3"
+
+	identifier := NewIdentifier("a", lexer.NewPosition(1, 5))
+	expected := NewVariable(lexer.INT, identifier, NewExpression(2, MINUS, 3))
+	parser := craeateParser(t, input)
+
+	statement := parser.parseVariableDeclaration()
+
+	statement, ok := statement.(*Variable)
+	if !ok {
+		t.Errorf("Parsed statement is not of type Variable")
+        t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+        t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+		return
+	}
+
+	if !reflect.DeepEqual(expected, statement) {
+		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, statement)
 	}
 }

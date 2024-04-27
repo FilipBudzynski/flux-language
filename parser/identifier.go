@@ -8,7 +8,7 @@ type Identifier struct {
 	Position lex.Position
 }
 
-func newIdentifier(name string, position lex.Position) Identifier {
+func NewIdentifier(name string, position lex.Position) Identifier {
 	return Identifier{
 		Name:     name,
 		Position: position,

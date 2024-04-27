@@ -22,6 +22,7 @@ func NewParser(lexer *lex.Lexer, errHandler func(error)) *Parser {
 
 func (p *Parser) consumeToken() {
 	p.token = *p.lexer.GetNextToken()
+	// log.Printf("token type: %v, token value: %v", p.token.Type, p.token.Value)
 }
 
 func (p *Parser) requierAndConsume(tokenType lex.TokenType, syntaxErrMessage string) lex.Token {
@@ -85,12 +86,12 @@ func (p *Parser) parseFunDef() *FunDef {
 }
 
 // parameters = parameter_group , { "," , parameter_group } ;
-func (p *Parser) parseParameters() []Variable {
+func (p *Parser) parseParameters() []*Variable {
 	paramGroup := p.parseParameterGroup()
 	if paramGroup == nil {
 		return nil
 	}
-	parameters := []Variable{}
+	parameters := []*Variable{}
 	parameters = append(parameters, paramGroup...)
 
 	for p.token.Type == lex.COMMA {
@@ -105,7 +106,7 @@ func (p *Parser) parseParameters() []Variable {
 }
 
 // parameter_group = identifier , { ",", identifier }, type_annotation ;
-func (p *Parser) parseParameterGroup() []Variable {
+func (p *Parser) parseParameterGroup() []*Variable {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
@@ -137,10 +138,10 @@ func (p *Parser) parseParameterGroup() []Variable {
 	if paramsType == nil {
 		panic(fmt.Errorf(SYNTAX_ERROR_NO_TYPE, p.token.Position.Column, p.token.Position.Line))
 	}
-	params := []Variable{}
+	params := []*Variable{}
 
 	for _, t := range namesAndPositions {
-		params = append(params, newVariable(*paramsType, newIdentifier(t.Name, t.Position), nil))
+		params = append(params, NewVariable(*paramsType, NewIdentifier(t.Name, t.Position), nil))
 	}
 	return params
 }
@@ -199,19 +200,22 @@ func (p *Parser) parseStatement() Statement {
 // variable_declaration  = type_annotation, identifier, ":=", expression ;
 func (p *Parser) parseVariableDeclaration() Statement {
 	typeAnnotation := p.parseTypeAnnotation()
+	if typeAnnotation == nil {
+		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TYPE_IN_DECLARATION, p.token.Position.Line, p.token.Position.Column))
+	}
 	identifierToken := p.requierAndConsume(lex.IDENTIFIER, SYNTAX_ERROR_NO_VARIABLE_IDETIFIER)
 	p.requierAndConsume(lex.DECLARE, SYNTAX_ERROR_MISSING_COLON_ASSIGN)
+
 	expression := p.parseOrCondition()
 
-	// na pewno???
-	// if expression == nil {
-	//     panic(fmt.Sprintf(SYNTAX_ERROR_NO_EXPRESSION_IN_DECLARATION, p.token.Position.Column, p.token.Position.Line))
-	// }
+	if expression == nil {
+		panic(fmt.Sprintf(SYNTAX_ERROR_NO_EXPRESSION_IN_VARIABLE_DECLARATION, p.token.Position.Column, p.token.Position.Line))
+	}
 
 	name := identifierToken.Value.(string)
 	position := identifierToken.Position
-	identifier := newIdentifier(name, position)
-	variable := newVariable(*typeAnnotation, identifier, expression)
+	identifier := NewIdentifier(name, position)
+	variable := NewVariable(*typeAnnotation, identifier, expression)
 	return variable
 }
 
@@ -221,7 +225,7 @@ func (p *Parser) parseAssignment() Statement {
 		return nil
 	}
 
-	identifier := newIdentifier(p.token.Value.(string), p.token.Position)
+	identifier := NewIdentifier(p.token.Value.(string), p.token.Position)
 	p.consumeToken()
 
 	if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
@@ -261,7 +265,7 @@ func (p *Parser) parseIdentifierOrCall() Statement {
 		return nil
 	}
 
-	identifier := newIdentifier(p.token.Value.(string), p.token.Position)
+	identifier := NewIdentifier(p.token.Value.(string), p.token.Position)
 	p.consumeToken()
 
 	if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
@@ -312,15 +316,15 @@ func (p *Parser) parseOrCondition() Expression {
 		return nil
 	}
 
-	for p.token.Type != lex.OR {
-		return leftExpression
+	for p.token.Type == lex.OR {
+		p.consumeToken()
+		rightExpression := p.parseAndCondition()
+		if rightExpression == nil {
+			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "OR"))
+		}
+		leftExpression = NewExpression(leftExpression, OR, rightExpression)
 	}
-	rightExpression := p.parseAndCondition()
-	if rightExpression == nil {
-		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line))
-	}
-
-	return NewExpression(leftExpression, OR, rightExpression)
+	return leftExpression
 }
 
 // conjunction_term = relation_term, { "and", relation_term } ;
@@ -330,15 +334,16 @@ func (p *Parser) parseAndCondition() Expression {
 		return nil
 	}
 
-	for p.token.Type != lex.AND {
-		return leftExpression
-	}
-	rightExpression := p.parseRelationCondition()
-	if rightExpression == nil {
-		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line))
+	for p.token.Type == lex.AND {
+		p.consumeToken()
+		rightExpression := p.parseRelationCondition()
+		if rightExpression == nil {
+			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "AND"))
+		}
+		leftExpression = NewExpression(leftExpression, AND, rightExpression)
 	}
 
-	return NewExpression(leftExpression, AND, rightExpression)
+	return leftExpression
 }
 
 // relation_term = additive_term, [ relation_operator, additive_term ] ;
@@ -361,11 +366,11 @@ func (p *Parser) parseRelationCondition() Expression {
 		return leftExpression
 	}
 	operation := validOperators[p.token.Type]
-    p.consumeToken()
+	p.consumeToken()
 
 	rightExpression := p.parsePlusOrMinus()
 	if rightExpression == nil {
-		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line))
+		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, operation))
 	}
 
 	return NewExpression(leftExpression, operation, rightExpression)
@@ -383,17 +388,17 @@ func (p *Parser) parsePlusOrMinus() Expression {
 		lex.MINUS: MINUS,
 	}
 
-	if _, ok := validOperators[p.token.Type]; !ok {
-		return leftExpression
+	for p.token.Type == lex.PLUS || p.token.Type == lex.MINUS {
+		operation := validOperators[p.token.Type]
+		p.consumeToken()
+		rightExpression := p.parseMultiplyCondition()
+		if rightExpression == nil {
+			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "+ or -"))
+		}
+		leftExpression = NewExpression(leftExpression, operation, rightExpression)
 	}
-	operation := validOperators[p.token.Type]
 
-	rightExpression := p.parseMultiplyCondition()
-	if rightExpression == nil {
-		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line))
-	}
-
-	return NewExpression(leftExpression, operation, rightExpression)
+	return leftExpression
 }
 
 // multiplicative_term = casted_term, { ("*" | "/"), casted_term } ;
@@ -408,17 +413,17 @@ func (p *Parser) parseMultiplyCondition() Expression {
 		lex.DIVIDE:   DIVIDE,
 	}
 
-	if _, ok := validOperators[p.token.Type]; !ok {
-		return leftExpression
+	for _, ok := validOperators[p.token.Type]; ok; {
+		operation := validOperators[p.token.Type]
+		p.consumeToken()
+		rightExpression := p.parseCastCondition()
+		if rightExpression == nil {
+			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "* or /"))
+		}
+		leftExpression = NewExpression(leftExpression, operation, rightExpression)
 	}
-	operation := validOperators[p.token.Type]
 
-	rightExpression := p.parseCastCondition()
-	if rightExpression == nil {
-		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line))
-	}
-
-	return NewExpression(leftExpression, operation, rightExpression)
+	return leftExpression
 }
 
 // casted_term = unary_operator, [ "as", type_annotation ] ;
@@ -439,37 +444,39 @@ func (p *Parser) parseCastCondition() Expression {
 	return NewExpression(unaryTerm, AS, typeAnnotation)
 }
 
-
 // unary_operator = [ ("-" | "!") ], term ;
 func (p *Parser) parseUnaryOperator() Expression {
-	term := p.parseTerm()
-
 	if p.token.Type != lex.MINUS && p.token.Type != lex.NEGATE {
-		return term
+		return p.parseTerm()
 	}
 
+    p.consumeToken()
+    term := p.parseTerm()
 	return NewExpression(term, NEGATE, nil)
 }
 
 // term = integer | float | bool | string | identifier_or_call | "(" , expression , ")" ;
 func (p *Parser) parseTerm() Expression {
+	var value any
 	switch p.token.Type {
 	case lex.IDENTIFIER:
 		name, position := p.parseIdentifier()
-		identifier := newIdentifier(name, position)
+		identifier := NewIdentifier(name, position)
 		if functionCall := p.parseFunctionCall(identifier); functionCall != nil {
 			return functionCall
 		}
 		return identifier
 	case lex.CONST_INT:
-        return p.token.Value.(int) 
+		value = p.token.Value.(int)
+		p.consumeToken()
+		return value
 	case lex.CONST_FLOAT:
 	case lex.CONST_TRUE:
 	case lex.CONST_FALSE:
 	case lex.CONST_STRING:
 	case lex.LEFT_PARENTHESIS:
-	default:
-		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
+		default:
+			panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
 	}
 	return nil
 }

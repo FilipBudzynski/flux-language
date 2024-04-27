@@ -33,8 +33,8 @@ type (
 	}
 )
 
-func NewExpression(leftExpression Expression, operation Operation, rightExpression Expression) *OperationExpression {
-	return &OperationExpression{
+func NewExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
+	return OperationExpression{
 		LeftExpression:  leftExpression,
 		Operation:       operation,
 		RightExpression: rightExpression,

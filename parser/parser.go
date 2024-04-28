@@ -206,7 +206,7 @@ func (p *Parser) parseVariableDeclaration() Statement {
 	identifierToken := p.requierAndConsume(lex.IDENTIFIER, SYNTAX_ERROR_NO_VARIABLE_IDETIFIER)
 	p.requierAndConsume(lex.DECLARE, SYNTAX_ERROR_MISSING_COLON_ASSIGN)
 
-	expression := p.parseOrCondition()
+	expression := p.parseExpression()
 
 	if expression == nil {
 		panic(fmt.Sprintf(SYNTAX_ERROR_NO_EXPRESSION_IN_VARIABLE_DECLARATION, p.token.Position.Column, p.token.Position.Line))
@@ -238,7 +238,7 @@ func (p *Parser) parseAssignment() Statement {
 
 	p.consumeToken()
 
-	expression := p.parseOrCondition()
+	expression := p.parseExpression()
 
 	//TODO: troche lipa, trzeba tutaj miec pewnosc ze zrobimy assigment z identifierem
 	// identifierOrCall := p.parseIdentifierOrCall()
@@ -293,7 +293,7 @@ func (p *Parser) parseFunctionCall(identifier Identifier) Statement {
 func (p *Parser) parseArguments() []Expression { // return []Variable czy []Expression ??
 	expressions := []Expression{}
 
-	expression := p.parseOrCondition()
+	expression := p.parseExpression()
 	// na pewno?
 	if expression == nil {
 		return expressions
@@ -302,7 +302,7 @@ func (p *Parser) parseArguments() []Expression { // return []Variable czy []Expr
 	expressions = append(expressions, expression)
 
 	for p.token.Type == lex.COMMA {
-		expression := p.parseOrCondition()
+		expression := p.parseExpression()
 		expressions = append(expressions, expression)
 		// p.consumeToken()
 	}
@@ -310,7 +310,7 @@ func (p *Parser) parseArguments() []Expression { // return []Variable czy []Expr
 }
 
 // expression = conjunction_term, { "or", conjunction_term } ;
-func (p *Parser) parseOrCondition() Expression {
+func (p *Parser) parseExpression() Expression {
 	leftExpression := p.parseAndCondition()
 	if leftExpression == nil {
 		return nil
@@ -322,7 +322,8 @@ func (p *Parser) parseOrCondition() Expression {
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "OR"))
 		}
-		leftExpression = NewExpression(leftExpression, OR, rightExpression)
+		// leftExpression = NewExpression(leftExpression, OR, rightExpression)
+		leftExpression = NewOrExpression(leftExpression, rightExpression)
 	}
 	return leftExpression
 }
@@ -340,7 +341,8 @@ func (p *Parser) parseAndCondition() Expression {
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "AND"))
 		}
-		leftExpression = NewExpression(leftExpression, AND, rightExpression)
+		// leftExpression = NewExpression(leftExpression, AND, rightExpression)
+		leftExpression = NewAndExpression(leftExpression, rightExpression)
 	}
 
 	return leftExpression
@@ -353,19 +355,20 @@ func (p *Parser) parseRelationCondition() Expression {
 		return nil
 	}
 
-	validOperators := map[lex.TokenType]Operation{
-		lex.EQUALS:           EQUALS,
-		lex.NOT_EQUALS:       NOT_EQUALS,
-		lex.GREATER_THAN:     GREATER_THAN,
-		lex.GREATER_OR_EQUAL: GREATER_OR_EQUAL,
-		lex.LESS_THAN:        LESS_THAN,
-		lex.LESS_OR_EQUAL:    LESS_OR_EQUAL,
+	validOperators := map[lex.TokenType]bool{
+		lex.EQUALS:           true,
+		lex.NOT_EQUALS:       true,
+		lex.GREATER_THAN:     true,
+		lex.GREATER_OR_EQUAL: true,
+		lex.LESS_OR_EQUAL:    true,
+		lex.LESS_THAN:        true,
 	}
 
 	if _, ok := validOperators[p.token.Type]; !ok {
 		return leftExpression
 	}
-	operation := validOperators[p.token.Type]
+
+	operation := p.token.Type
 	p.consumeToken()
 
 	rightExpression := p.parsePlusOrMinus()
@@ -373,7 +376,23 @@ func (p *Parser) parseRelationCondition() Expression {
 		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, operation))
 	}
 
-	return NewExpression(leftExpression, operation, rightExpression)
+	switch operation {
+	case lex.EQUALS:
+		return NewEqualsExpression(leftExpression, rightExpression)
+	case lex.NOT_EQUALS:
+		return NewNotEqualsExpression(leftExpression, rightExpression)
+	case lex.GREATER_THAN:
+		return NewGreaterThanExpression(leftExpression, rightExpression)
+	case lex.GREATER_OR_EQUAL:
+		return NewGreaterOrEqualExpression(leftExpression, rightExpression)
+	case lex.LESS_OR_EQUAL:
+		return NewLessThanExpression(leftExpression, rightExpression)
+	case lex.LESS_THAN:
+		return NewLessOrEqualExpression(leftExpression, rightExpression)
+	default:
+		// TODO: should panic
+		return nil
+	}
 }
 
 // additive_term = multiplicative_term, { ("+" | "-"), multiplicative_term } ;
@@ -383,19 +402,20 @@ func (p *Parser) parsePlusOrMinus() Expression {
 		return nil
 	}
 
-	validOperators := map[lex.TokenType]Operation{
-		lex.PLUS:  PLUS,
-		lex.MINUS: MINUS,
-	}
-
 	for p.token.Type == lex.PLUS || p.token.Type == lex.MINUS {
-		operation := validOperators[p.token.Type]
+		operation := p.token.Type
 		p.consumeToken()
 		rightExpression := p.parseMultiplyCondition()
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "+ or -"))
 		}
-		leftExpression = NewExpression(leftExpression, operation, rightExpression)
+
+		switch operation {
+		case lex.PLUS:
+			leftExpression = NewSumExpression(leftExpression, rightExpression)
+		case lex.MINUS:
+			leftExpression = NewSubstractExpression(leftExpression, rightExpression)
+		}
 	}
 
 	return leftExpression
@@ -414,13 +434,19 @@ func (p *Parser) parseMultiplyCondition() Expression {
 	}
 
 	for _, ok := validOperators[p.token.Type]; ok; {
-		operation := validOperators[p.token.Type]
+		operation := p.token.Type
 		p.consumeToken()
 		rightExpression := p.parseCastCondition()
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "* or /"))
 		}
-		leftExpression = NewExpression(leftExpression, operation, rightExpression)
+
+		switch operation {
+		case lex.PLUS:
+			leftExpression = NewSumExpression(leftExpression, rightExpression)
+		case lex.MINUS:
+			leftExpression = NewSubstractExpression(leftExpression, rightExpression)
+		}
 	}
 
 	return leftExpression
@@ -438,10 +464,11 @@ func (p *Parser) parseCastCondition() Expression {
 	if p.token.Type != lex.AS {
 		return unaryTerm
 	}
-	typeAnnotation := p.parseTypeAnnotation()
+	typeToken := p.parseTypeAnnotation()
+    typeAnnotation := validTypes[*typeToken]
 
 	// TODO: czy na pewno casted terma moge zwracac jako expression???
-	return NewExpression(unaryTerm, AS, typeAnnotation)
+	return NewCastExpression(unaryTerm, typeAnnotation)
 }
 
 // unary_operator = [ ("-" | "!") ], term ;
@@ -450,9 +477,10 @@ func (p *Parser) parseUnaryOperator() Expression {
 		return p.parseTerm()
 	}
 
-    p.consumeToken()
-    term := p.parseTerm()
-	return NewExpression(term, NEGATE, nil)
+	p.consumeToken()
+	term := p.parseTerm()
+	// return NewExpression(term, NEGATE, nil)
+    return NewNegateExpression(term)
 }
 
 // term = integer | float | bool | string | identifier_or_call | "(" , expression , ")" ;
@@ -471,14 +499,17 @@ func (p *Parser) parseTerm() Expression {
 		p.consumeToken()
 		return value
 	case lex.CONST_FLOAT:
-	case lex.CONST_TRUE:
-	case lex.CONST_FALSE:
-	case lex.CONST_STRING:
-	case lex.LEFT_PARENTHESIS:
-		default:
-			panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
+		value = p.token.Value.(int)
+		p.consumeToken()
+		return value
+	// case lex.CONST_TRUE:
+	// case lex.CONST_FALSE:
+	// case lex.CONST_STRING:
+	// case lex.LEFT_PARENTHESIS:
+	default:
+		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
 	}
-	return nil
+	// return nil
 }
 
 // conditional_statement = "if" , expression , block , [ "else" , block ] ;

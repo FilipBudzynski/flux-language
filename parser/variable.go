@@ -39,8 +39,8 @@ func NewVariable(variableType lex.TokenType, identifier Identifier, value any) *
 // }
 
 type Assignemnt struct {
-	Identifier Identifier
 	Value      Expression
+	Identifier Identifier
 }
 
 func NewAssignment(identifier Identifier, value Expression) Assignemnt {

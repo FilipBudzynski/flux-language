@@ -3,10 +3,10 @@ package parser
 import lex "tkom/lexer"
 
 type FunDef struct {
-	Name       string
-	Parameters []*Variable
-	Block      Block
 	Type       *lex.TokenType
+	Parameters []*Variable
+	Name       string
+	Block      Block
 	Position   lex.Position
 }
 

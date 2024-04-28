@@ -3,8 +3,8 @@ package parser
 import lex "tkom/lexer"
 
 type FunctionCall struct {
-	Identifier Identifier
 	Arguments  []Expression
+	Identifier Identifier
 	Position   lex.Position
 }
 

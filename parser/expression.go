@@ -49,7 +49,7 @@ type OperationExpression struct {
 	Operation       Operation
 }
 
-func NewExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
+func NewOperationExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
 	return OperationExpression{
 		LeftExpression:  leftExpression,
 		Operation:       operation,
@@ -81,13 +81,6 @@ func NewAndExpression(leftExpression Expression, rightExpression Expression) And
 	}
 }
 
-// each of the following below should have a type and a factory function
-// lex.EQUALS:           EQUALS,
-//    lex.NOT_EQUALS:       NOT_EQUALS,
-//    lex.GREATER_THAN:     GREATER_THAN,
-//    lex.GREATER_OR_EQUAL: GREATER_OR_EQUAL,
-//    lex.LESS_THAN:        LESS_THAN,
-//    lex.LESS_OR_EQUAL:    LESS_OR_EQUAL,
 
 type EqualsExpression struct {
 	LeftExpression  Expression

@@ -158,7 +158,7 @@ func (p *Parser) parseTypeAnnotation() *lex.TokenType {
 }
 
 // block = "{" , { statement } , "}" ;
-func (p *Parser) parseBlock() Block {
+func (p *Parser) parseBlock() []Statement {
 	p.requierAndConsume(lex.LEFT_BRACE, SYNTAX_ERROR_NO_BLOCK)
 
 	statements := []Statement{}
@@ -173,7 +173,7 @@ func (p *Parser) parseBlock() Block {
 	}
 	p.requierAndConsume(lex.RIGHT_BRACE, SYNTAX_ERROR_EXPECTED_RIGHT_BRACE)
 
-	return Block{Statements: statements}
+	return statements
 }
 
 // statement = variable_declaration | assigment | conditional_statement | loop_statement | switch_statement | return_statement ;
@@ -182,11 +182,11 @@ func (p *Parser) parseStatement() Statement {
 	case lex.INT, lex.FLOAT, lex.BOOL, lex.STRING:
 		return p.parseVariableDeclaration()
 	case lex.IDENTIFIER:
-		return p.parseIdentifierOrCall()
-	// case lex.IF:
-	// 	return p.parseConditionalStatement()
-	// case lex.WHILE:
-	// 	return p.parseLoopStatement()
+		return p.parseAssignment()
+	case lex.IF:
+		return p.parseConditionalStatement()
+	case lex.WHILE:
+		return p.parseWhileStatement()
 	// case lex.SWITCH:
 	// 	return p.parseSwitchStatement()
 	// case lex.RETURN:
@@ -239,22 +239,6 @@ func (p *Parser) parseAssignment() Statement {
 	p.consumeToken()
 
 	expression := p.parseExpression()
-
-	//TODO: troche lipa, trzeba tutaj miec pewnosc ze zrobimy assigment z identifierem
-	// identifierOrCall := p.parseIdentifierOrCall()
-	//
-	// if p.token.Type != lex.ASSIGN {
-	// 	return identifierOrCall
-	// }
-	//
-	// // illigal assigment to function call
-	// // nie wiem czy to tutaj robic czy dopiero w interpreterze ale na razie zostawiam
-	// if reflect.TypeOf(identifierOrCall) != reflect.TypeOf(Identifier{}) {
-	// 	panic(fmt.Sprintf(ERROR_ASIGNMENT_TO_FUNCTION_CALL, p.token.Position.Column, p.token.Position.Line))
-	// }
-	//
-	// p.consumeToken()
-	// expression := p.parseOrCondition()
 
 	return NewAssignment(identifier, expression)
 }
@@ -386,9 +370,9 @@ func (p *Parser) parseRelationCondition() Expression {
 	case lex.GREATER_OR_EQUAL:
 		return NewGreaterOrEqualExpression(leftExpression, rightExpression)
 	case lex.LESS_OR_EQUAL:
-		return NewLessThanExpression(leftExpression, rightExpression)
-	case lex.LESS_THAN:
 		return NewLessOrEqualExpression(leftExpression, rightExpression)
+	case lex.LESS_THAN:
+		return NewLessThanExpression(leftExpression, rightExpression)
 	default:
 		// TODO: should panic
 		return nil
@@ -428,24 +412,20 @@ func (p *Parser) parseMultiplyCondition() Expression {
 		return nil
 	}
 
-	validOperators := map[lex.TokenType]Operation{
-		lex.MULTIPLY: MULTIPLY,
-		lex.DIVIDE:   DIVIDE,
-	}
-
-	for _, ok := validOperators[p.token.Type]; ok; {
+	for p.token.Type == lex.MULTIPLY || p.token.Type == lex.DIVIDE {
 		operation := p.token.Type
 		p.consumeToken()
 		rightExpression := p.parseCastCondition()
+
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "* or /"))
 		}
 
 		switch operation {
-		case lex.PLUS:
-			leftExpression = NewSumExpression(leftExpression, rightExpression)
-		case lex.MINUS:
-			leftExpression = NewSubstractExpression(leftExpression, rightExpression)
+		case lex.MULTIPLY:
+			leftExpression = NewMultiplyExpression(leftExpression, rightExpression)
+		case lex.DIVIDE:
+			leftExpression = NewDivideExpression(leftExpression, rightExpression)
 		}
 	}
 
@@ -456,7 +436,7 @@ func (p *Parser) parseMultiplyCondition() Expression {
 func (p *Parser) parseCastCondition() Expression {
 	unaryTerm := p.parseUnaryOperator()
 
-	// TODO: nie moze byc nil, to oznacza ze nic nie sparsowalismy
+	// TODO: nie moze byc nil, to oznacza ze nic nie sparsowalismy nie?
 	if unaryTerm == nil {
 		return nil
 	}
@@ -464,11 +444,14 @@ func (p *Parser) parseCastCondition() Expression {
 	if p.token.Type != lex.AS {
 		return unaryTerm
 	}
-	typeToken := p.parseTypeAnnotation()
-    typeAnnotation := validTypes[*typeToken]
 
-	// TODO: czy na pewno casted terma moge zwracac jako expression???
-	return NewCastExpression(unaryTerm, typeAnnotation)
+	typeToken := p.parseTypeAnnotation()
+	if typeAnnotation, ok := validTypes[*typeToken]; !ok {
+		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TYPE_IN_CAST, p.token.Position.Column, p.token.Position.Line))
+	} else {
+		// TODO: czy na pewno casted terma moge zwracac jako expression???
+		return NewCastExpression(unaryTerm, typeAnnotation)
+	}
 }
 
 // unary_operator = [ ("-" | "!") ], term ;
@@ -479,8 +462,9 @@ func (p *Parser) parseUnaryOperator() Expression {
 
 	p.consumeToken()
 	term := p.parseTerm()
-	// return NewExpression(term, NEGATE, nil)
-    return NewNegateExpression(term)
+
+	// TODO: should i check whether it is int float or different, if int and token is "!" == syntax error?
+	return NewNegateExpression(term)
 }
 
 // term = integer | float | bool | string | identifier_or_call | "(" , expression , ")" ;
@@ -499,24 +483,70 @@ func (p *Parser) parseTerm() Expression {
 		p.consumeToken()
 		return value
 	case lex.CONST_FLOAT:
-		value = p.token.Value.(int)
+		value = p.token.Value.(float64)
 		p.consumeToken()
 		return value
-	// case lex.CONST_TRUE:
-	// case lex.CONST_FALSE:
-	// case lex.CONST_STRING:
-	// case lex.LEFT_PARENTHESIS:
+	case lex.CONST_TRUE:
+		p.consumeToken()
+		return true
+	case lex.CONST_FALSE:
+		p.consumeToken()
+		return false
+	case lex.CONST_STRING:
+		value = p.token.Value.(string)
+		p.consumeToken()
+		return value
+	case lex.LEFT_PARENTHESIS:
+		p.consumeToken()
+		value = p.parseExpression()
+		if value == nil {
+			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, p.token.Type.TypeName()))
+		}
+		p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_NO_RIGHT_PARENTHESIS_IN_NESTED_EXPRESSION)
+		return value
 	default:
 		panic(fmt.Sprintf(SYNTAX_ERROR_NO_TERM, p.token.Position.Column, p.token.Position.Line))
 	}
-	// return nil
 }
 
 // conditional_statement = "if" , expression , block , [ "else" , block ] ;
-func (p *Parser) parseConditionalStatement() {}
+func (p *Parser) parseConditionalStatement() *IfStatement {
+	if p.token.Type == lex.IF {
+		p.consumeToken()
+	}
+	condition := p.parseExpression()
+
+	if condition == nil {
+		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, "if"))
+	}
+
+	instructions := p.parseBlock()
+
+	if p.token.Type != lex.ELSE {
+		return NewIfStatement(condition, instructions, nil)
+	}
+	p.consumeToken()
+
+	elseInstructions := p.parseBlock()
+
+	return NewIfStatement(condition, instructions, elseInstructions)
+}
 
 // loop_statement = "while" , expression, block ;
-func (p *Parser) parseLoopStatement() {}
+func (p *Parser) parseWhileStatement() *WhileStatement {
+	if p.token.Type != lex.WHILE {
+		return nil
+	}
+	p.consumeToken()
+
+	condition := p.parseExpression()
+	if condition == nil {
+		panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Column, p.token.Position.Line, lex.WHILE.TypeName()))
+	}
+	instructions := p.parseBlock()
+
+	return NewWhileStatement(condition, instructions)
+}
 
 // switch_statement = "switch", ( variable_declaration, { ",", variable_declaraion } ) | expression, "{", switch_case, { ",", switch_case "}" ;
 func (p *Parser) parseSwitchStatement() {}

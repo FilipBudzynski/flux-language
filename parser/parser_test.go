@@ -21,7 +21,6 @@ func isSliceEqual(t *testing.T, slice1, slice2 []*Variable) bool {
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -81,8 +80,8 @@ func TestParseParameters(t *testing.T) {
 	}
 
 	for i, param := range params {
-		if param.Idetifier != expected[i].Idetifier {
-			t.Errorf("Expected parameter name %s, got %s", expected[i].Idetifier.Name, param.Idetifier.Name)
+		if param.Identifier != expected[i].Identifier {
+			t.Errorf("Expected parameter name %s, got %s", expected[i].Identifier.Name, param.Identifier.Name)
 		}
 		if param.Type != expected[i].Type {
 			t.Errorf("Expected parameter type %v, got %v", expected[i].Type, param.Type)
@@ -111,7 +110,7 @@ func TestParseEmptyFunctionDefinition(t *testing.T) {
 	variable1 := NewVariable(lexer.INT, NewIdentifier("a", lexer.NewPosition(1, 12)), nil)
 	variable2 := NewVariable(lexer.STRING, NewIdentifier("b", lexer.NewPosition(1, 19)), nil)
 	parameters := []*Variable{variable1, variable2}
-	expected := NewFunctionDefinition("myFunction", parameters, nil, Block{Statements: []Statement{}}, lexer.NewPosition(1, 1))
+	expected := NewFunctionDefinition("myFunction", parameters, nil, []Statement{}, lexer.NewPosition(1, 1))
 
 	lex := createLexer(input)
 	errorHandler := func(err error) {
@@ -180,7 +179,7 @@ func TestParseExpressionGreater(t *testing.T) {
 
 	expression := parser.parseExpression()
 
-    // type assertion
+	// type assertion
 	if _, ok := expression.(GreaterOrEqualExpression); !ok {
 		t.Errorf("Parsed expression is not of type OperationExpression")
 		return
@@ -193,12 +192,99 @@ func TestParseExpressionGreater(t *testing.T) {
 	}
 }
 
-func TestParseVariableDeclaration(t *testing.T) {
-	input := "int a := 2 - 3"
+// func TestParseVariableDeclaration(t *testing.T) {
+// 	input := "int a := 2 - 3"
+//
+// 	identifier := NewIdentifier("a", lexer.NewPosition(1, 5))
+// 	expected := NewVariable(lexer.INT, identifier, NewSubstractExpression(2, 3))
+// 	parser := createParser(t, input)
+//
+// 	statement := parser.parseVariableDeclaration()
+//
+// 	statement, ok := statement.(*Variable)
+// 	if !ok {
+// 		t.Errorf("Parsed statement is not of type Variable")
+// 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+// 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+// 		return
+// 	}
+//
+// 	if !reflect.DeepEqual(expected, statement) {
+// 		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, statement)
+// 	}
+// }
 
-	identifier := NewIdentifier("a", lexer.NewPosition(1, 5))
-	expected := NewVariable(lexer.INT, identifier, NewSubstractExpression(2, 3))
-	parser := craeateParser(t, input)
+func TestParseVariableDeclaration(t *testing.T) {
+	tests := []struct {
+		expected *Variable
+		input    string
+	}{
+		{
+			input: "int a := 2 - 3",
+			expected: &Variable{
+				Type:       lexer.INT,
+				Identifier: NewIdentifier("a", lexer.NewPosition(1, 5)),
+				Value:      NewSubstractExpression(2, 3),
+			},
+		},
+		{
+			input: "int a := 2 + 2 + 2",
+			expected: &Variable{
+				Type:       lexer.INT,
+				Identifier: NewIdentifier("a", lexer.NewPosition(1, 5)),
+				Value:      NewSumExpression(NewSumExpression(2, 2), 2),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		parser := createParser(t, test.input)
+		statement := parser.parseVariableDeclaration().(*Variable)
+
+		if !reflect.DeepEqual(test.expected, statement) {
+			t.Errorf("Input: %s\nExpressions are not equal, expected: %v, got: %v", test.input, test.expected, statement)
+		}
+	}
+}
+
+func TestParseNegateExpression(t *testing.T) {
+	tests := []struct {
+		expected Expression
+		input    string
+	}{
+		{
+			input:    "-22",
+			expected: NewNegateExpression(22),
+		},
+		{
+			input:    "!a",
+			expected: NewNegateExpression(NewIdentifier("a", lexer.NewPosition(1, 2))),
+		},
+	}
+
+	for _, test := range tests {
+		parser := createParser(t, test.input)
+		statement := parser.parseExpression()
+
+		if statement, ok := statement.(NegateExpression); !ok {
+			t.Errorf("Parsed statement is not of type Variable")
+			t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+			t.Errorf("Expected type: %v", reflect.TypeOf(test.expected))
+			return
+		}
+
+		if !reflect.DeepEqual(test.expected, statement) {
+			t.Errorf("Expressions are not equal, expected: %v, got: %v", test.expected, statement)
+		}
+	}
+}
+
+func TestParseBoolExpression(t *testing.T) {
+	input := "bool c := true"
+
+	identifier := NewIdentifier("c", lexer.NewPosition(1, 6))
+	expected := NewVariable(lexer.BOOL, identifier, true)
+	parser := createParser(t, input)
 
 	statement := parser.parseVariableDeclaration()
 
@@ -215,18 +301,16 @@ func TestParseVariableDeclaration(t *testing.T) {
 	}
 }
 
-func TestParseVariableDeclarationNester(t *testing.T) {
-	input := "int a := 2 + 2 + 2"
+func TestParseFloatExpression(t *testing.T) {
+	input := "3.14"
 
-	identifier := NewIdentifier("a", lexer.NewPosition(1, 5))
-	expected := NewVariable(lexer.INT, identifier, NewSumExpression(NewSumExpression(2, 2), 2))
-	parser := craeateParser(t, input)
+	expected := 3.14
+	parser := createParser(t, input)
 
-	statement := parser.parseVariableDeclaration()
+	statement := parser.parseExpression()
 
-	statement, ok := statement.(*Variable)
-	if !ok {
-		t.Errorf("Parsed statement is not of type Variable")
+	if statement, ok := statement.(float64); !ok {
+		t.Errorf("Parsed statement is not of type Float")
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
 		return
@@ -235,6 +319,116 @@ func TestParseVariableDeclarationNester(t *testing.T) {
 	if !reflect.DeepEqual(expected, statement) {
 		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, statement)
 	}
+}
+
+func TestParseStringExpression(t *testing.T) {
+	input := `"This is test a string"`
+
+	expected := "This is test a string"
+	parser := createParser(t, input)
+
+	statement := parser.parseExpression()
+
+	if statement, ok := statement.(string); !ok {
+		t.Errorf("Parsed statement is not of type Float")
+		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+		return
+	}
+
+	if !reflect.DeepEqual(expected, statement) {
+		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestParseParenthesisExpression(t *testing.T) {
+	input := "3 * (1 + (4 - 1))"
+
+	expected := NewMultiplyExpression(3, NewSumExpression(1, NewSubstractExpression(4, 1)))
+	parser := createParser(t, input)
+
+	statement := parser.parseExpression()
+
+	if statement, ok := statement.(MultiplyExpression); !ok {
+		t.Errorf("Parsed statement is not of type %v", reflect.TypeOf(expected))
+		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+		return
+	}
+
+	if !reflect.DeepEqual(expected, statement) {
+		t.Errorf("Expressions are not equal, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestParseIfStatement(t *testing.T) {
+	input := "if x == 10 { y = 20 }"
+
+	expected := NewIfStatement(
+		NewEqualsExpression(NewIdentifier("x", lexer.NewPosition(1, 4)), 10),
+		[]Statement{NewAssignment(NewIdentifier("y", lexer.NewPosition(1, 14)), 20)},
+		nil,
+	)
+	parser := createParser(t, input)
+
+	statement := parser.parseConditionalStatement()
+
+	if !reflect.DeepEqual(expected, statement) {
+		t.Errorf("If statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestParseIfStatementWithElse(t *testing.T) {
+	input := "if x == 10 { y = 20 } else { y = 15 }"
+
+	expected := NewIfStatement(
+		NewEqualsExpression(NewIdentifier("x", lexer.NewPosition(1, 4)), 10),
+		[]Statement{NewAssignment(NewIdentifier("y", lexer.NewPosition(1, 14)), 20)},
+		[]Statement{NewAssignment(NewIdentifier("y", lexer.NewPosition(1, 30)), 15)},
+	)
+	parser := createParser(t, input)
+	statement := parser.parseConditionalStatement()
+
+	if !reflect.DeepEqual(expected, statement) {
+		t.Errorf("If statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestParseWhileStatement(t *testing.T) {
+    // TODO: try to do one with "else"
+	input := "while x < 10 { y = y + 1 }"
+
+	id1 := NewIdentifier("y", lexer.NewPosition(1, 16))
+	id2 := NewIdentifier("y", lexer.NewPosition(1, 20))
+	expected := NewWhileStatement(
+		NewLessThanExpression(NewIdentifier("x", lexer.NewPosition(1, 7)), 10),
+		[]Statement{NewAssignment(id1, NewSumExpression(id2, 1))},
+	)
+	parser := createParser(t, input)
+	statement := parser.parseWhileStatement()
+
+	if !areWhileStatementsEqual(expected, statement) {
+		t.Errorf("If statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+// Helper function to check equality of two while statements
+func areWhileStatementsEqual(expected, statement *WhileStatement) bool {
+	if expected.Condition != statement.Condition {
+		return false
+	}
+
+	if len(expected.Instructions) != len(statement.Instructions) {
+		return false
+	}
+
+	for i := range expected.Instructions {
+		if !reflect.DeepEqual(expected.Instructions[i], statement.Instructions[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Helper function to create a lexer from a given input string
@@ -243,7 +437,8 @@ func createLexer(input string) *lexer.Lexer {
 	return lexer.NewLexer(source, 1000, 1000, 1000)
 }
 
-func craeateParser(t *testing.T, input string) *Parser {
+// Helper function to create parser
+func createParser(t *testing.T, input string) *Parser {
 	lex := createLexer(input)
 	errorHandler := func(err error) {
 		t.Errorf("Parse Identifier error: %v", err)
@@ -262,8 +457,8 @@ func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef
 		return false
 	}
 
-	if !reflect.DeepEqual(functionDefinition.Block, expected.Block) {
-		t.Errorf("expected Block: %v, got: %v", expected.Block, functionDefinition.Block)
+	if !reflect.DeepEqual(functionDefinition.Statements, expected.Statements) {
+		t.Errorf("expected Block: %v, got: %v", expected.Statements, functionDefinition.Statements)
 		return false
 	}
 

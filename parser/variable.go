@@ -7,16 +7,16 @@ import (
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
 
 type Variable struct {
-	Value     any
-	Idetifier Identifier
-	Type      lex.TokenType
+	Value      any
+	Identifier Identifier
+	Type       lex.TokenType
 }
 
 func NewVariable(variableType lex.TokenType, identifier Identifier, value any) *Variable {
 	return &Variable{
-		Type:      variableType,
-		Idetifier: identifier,
-		Value:     value,
+		Type:       variableType,
+		Identifier: identifier,
+		Value:      value,
 	}
 }
 

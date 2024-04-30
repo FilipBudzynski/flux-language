@@ -361,6 +361,28 @@ func TestParseParenthesisExpression(t *testing.T) {
 	}
 }
 
+func TestParseOrAndExpression(t *testing.T) {
+	input := "a or b and c"
+
+	idA := NewIdentifier("a", lexer.NewPosition(1, 1))
+	idB := NewIdentifier("b", lexer.NewPosition(1, 6))
+	idC := NewIdentifier("c", lexer.NewPosition(1, 12))
+	expected := NewOrExpression(idA, NewAndExpression(idB, idC))
+	parser := createParser(t, input)
+
+	statement := parser.parseExpression()
+
+	if statement, ok := statement.(OrExpression); !ok {
+		t.Errorf("Parsed statement is not of type OrExpression")
+		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
+		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
+	}
+
+	if expected.Equals(statement.(OrExpression)) {
+		t.Errorf("And with Or expressions not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
 func TestParseIfStatement(t *testing.T) {
 	input := "if x == 10 { y = 20 }"
 
@@ -395,7 +417,6 @@ func TestParseIfStatementWithElse(t *testing.T) {
 }
 
 func TestParseWhileStatement(t *testing.T) {
-    // TODO: try to do one with "else"
 	input := "while x < 10 { y = y + 1 }"
 
 	id1 := NewIdentifier("y", lexer.NewPosition(1, 16))
@@ -405,10 +426,84 @@ func TestParseWhileStatement(t *testing.T) {
 		[]Statement{NewAssignment(id1, NewSumExpression(id2, 1))},
 	)
 	parser := createParser(t, input)
+
 	statement := parser.parseWhileStatement()
 
 	if !areWhileStatementsEqual(expected, statement) {
-		t.Errorf("If statement not parsed correctly, expected: %v, got: %v", expected, statement)
+		t.Errorf("While statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestSwitchStatement(t *testing.T) {
+	input := `switch int a := 2 {
+        a > 2 and a < 10 => "Kasia",
+        a >= 10          => "Asia"
+    }`
+
+	idA := NewIdentifier("a", lexer.NewPosition(1, 8))
+	variable := NewVariable(lexer.INT, idA, 2)
+	variables := []*Variable{variable}
+	cases := []Statement{
+		NewSwitchCase(NewAndExpression(
+			NewGreaterThanExpression(idA, 2),
+			NewLessThanExpression(idA, 10)), "Kasia"),
+		NewSwitchCase(NewGreaterOrEqualExpression(idA, 10), "Asia"),
+	}
+	expected := NewSwitchStatement(variables, nil, cases)
+	parser := createParser(t, input)
+
+	statement := parser.parseSwitchStatement()
+
+	if !expected.Equals(*statement) {
+		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestSwitchStatementWithIdentifier(t *testing.T) {
+	input := `switch a {
+        >2 or >10 => fun1(),
+        >= 10     => fun2()
+    }`
+
+	expression := NewIdentifier("a", lexer.NewPosition(1, 8))
+	cases := []Statement{
+		NewSwitchCase(NewOrExpression(
+			NewGreaterThanExpression(expression, 2),
+			NewGreaterThanExpression(expression, 10)),
+			newFunctionCall(NewIdentifier("fun1", lexer.NewPosition(2, 21)), nil)),
+		NewSwitchCase(NewGreaterOrEqualExpression(expression, 10), 
+			newFunctionCall(NewIdentifier("fun2", lexer.NewPosition(2, 10)), nil)),
+	}
+	expected := NewSwitchStatement(nil, expression, cases)
+	parser := createParser(t, input)
+
+	statement := parser.parseSwitchStatement()
+
+	if !expected.Equals(*statement) {
+		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestSwitchStatementWithExpression(t *testing.T) {
+	input := `switch 2 + 2 {
+        > 2 and < 10 => 100,
+        >= 10        => 200
+    }`
+
+	expression := NewSumExpression(2, 2)
+	cases := []Statement{
+		NewSwitchCase(NewAndExpression(
+			NewGreaterThanExpression(expression, 2),
+			NewLessThanExpression(expression, 10)), "Kasia"),
+		NewSwitchCase(NewGreaterOrEqualExpression(expression, 10), "Asia"),
+	}
+	expected := NewSwitchStatement(nil, expression, cases)
+	parser := createParser(t, input)
+
+	statement := parser.parseSwitchStatement()
+
+	if !expected.Equals(*statement) {
+		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
 	}
 }
 

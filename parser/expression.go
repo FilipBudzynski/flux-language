@@ -1,8 +1,9 @@
 package parser
 
-import "tkom/lexer"
-
-// import lex "tkom/lexer"
+import (
+	"reflect"
+	"tkom/lexer"
+)
 
 type (
 	Operation      interface{}
@@ -43,19 +44,23 @@ var validTypes = map[lexer.TokenType]TypeAnnotation{
 
 type Expression interface{}
 
-type OperationExpression struct {
-	LeftExpression  Expression
-	RightExpression Expression
-	Operation       Operation
-}
-
-func NewOperationExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
-	return OperationExpression{
-		LeftExpression:  leftExpression,
-		Operation:       operation,
-		RightExpression: rightExpression,
-	}
-}
+// type OperationExpression struct {
+// 	LeftExpression  Expression
+// 	RightExpression Expression
+// 	Operation       Operation
+// }
+//
+// func NewOperationExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
+// 	return OperationExpression{
+// 		LeftExpression:  leftExpression,
+// 		Operation:       operation,
+// 		RightExpression: rightExpression,
+// 	}
+// }
+//
+// func (e *OperationExpression) Equals(other OperationExpression) bool {
+// 	return reflect.DeepEqual(e, other)
+// }
 
 type OrExpression struct {
 	LeftExpression  Expression
@@ -67,6 +72,10 @@ func NewOrExpression(leftExpression Expression, rightExpression Expression) OrEx
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *OrExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type AndExpression struct {
@@ -81,6 +90,9 @@ func NewAndExpression(leftExpression Expression, rightExpression Expression) And
 	}
 }
 
+func (e *AndExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
+}
 
 type EqualsExpression struct {
 	LeftExpression  Expression
@@ -92,6 +104,10 @@ func NewEqualsExpression(leftExpression Expression, rightExpression Expression) 
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *EqualsExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type NotEqualsExpression struct {
@@ -106,6 +122,10 @@ func NewNotEqualsExpression(leftExpression Expression, rightExpression Expressio
 	}
 }
 
+func (e *NotEqualsExpression) Equals(other EqualsExpression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type GreaterThanExpression struct {
 	LeftExpression  Expression
 	RightExpression Expression
@@ -116,6 +136,10 @@ func NewGreaterThanExpression(leftExpression Expression, rightExpression Express
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *GreaterThanExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type LessThanExpression struct {
@@ -130,6 +154,10 @@ func NewLessThanExpression(leftExpression Expression, rightExpression Expression
 	}
 }
 
+func (e *LessThanExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type GreaterOrEqualExpression struct {
 	LeftExpression  Expression
 	RightExpression Expression
@@ -140,6 +168,10 @@ func NewGreaterOrEqualExpression(leftExpression Expression, rightExpression Expr
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *GreaterOrEqualExpression) Equals(other GreaterOrEqualExpression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type LessOrEqualExpression struct {
@@ -154,6 +186,10 @@ func NewLessOrEqualExpression(leftExpression Expression, rightExpression Express
 	}
 }
 
+func (e *LessOrEqualExpression) Equals(other LessOrEqualExpression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type SumExpression struct {
 	LeftExpression  Expression
 	RightExpression Expression
@@ -164,6 +200,10 @@ func NewSumExpression(leftExpression Expression, rightExpression Expression) Sum
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *SumExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type SubstractExpression struct {
@@ -178,6 +218,10 @@ func NewSubstractExpression(leftExpression Expression, rightExpression Expressio
 	}
 }
 
+func (e *SubstractExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type MultiplyExpression struct {
 	LeftExpression  Expression
 	RightExpression Expression
@@ -188,6 +232,10 @@ func NewMultiplyExpression(leftExpression Expression, rightExpression Expression
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,
 	}
+}
+
+func (e *MultiplyExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }
 
 type DivideExpression struct {
@@ -202,6 +250,10 @@ func NewDivideExpression(leftExpression Expression, rightExpression Expression) 
 	}
 }
 
+func (e *DivideExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type CastExpression struct {
 	LeftExpression Expression
 	TypeAnnotation Operation
@@ -214,6 +266,10 @@ func NewCastExpression(leftExpression Expression, typeAnnotation Operation) Cast
 	}
 }
 
+func (e *CastExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
+}
+
 type NegateExpression struct {
 	Expression Expression
 }
@@ -222,4 +278,8 @@ func NewNegateExpression(expression Expression) NegateExpression {
 	return NegateExpression{
 		Expression: expression,
 	}
+}
+
+func (e *NegateExpression) Equals(other Expression) bool {
+	return reflect.DeepEqual(e, other)
 }

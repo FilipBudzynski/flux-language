@@ -19,4 +19,11 @@ const (
 	SYNTAX_ERROR_NO_EXPRESSION_IN_VARIABLE_DECLARATION     = "error [%v, %v]: no expression defined for variable declaration"
 	SYNTAX_ERROR_NO_TYPE_IN_DECLARATION                    = "error [%v, %v]: no type defined for variable declaration"
 	SYNTAX_ERROR_NO_RIGHT_PARENTHESIS_IN_NESTED_EXPRESSION = "error [%v, %v]: no right parenthesis in nested expression"
+	SYNTAX_ERROR_NO_RETURN                                 = "error [%v, %v]: no return statement defined"
+	SYNTAX_ERROR_NO_LEFT_CURLY_BRACKET_IN_SWITCH           = "error [%v, %v]: no left curly bracket in switch statement"
+	SYNTAX_ERROR_NO_ARROW                                  = "error [%v, %v]: no arrow in case condition, perhaps you have ',' after the last case"
+	SYNTAX_ERROR_NOT_CLOSED_SWITCH                         = "error [%v, %v]: switch statement not closed"
+	SYNTAX_ERROR_NO_SWITCH_CASES                           = "error [%v, %v]: no switch cases defined"
+	ERROR_MISSING_SWITCH_CASE                              = "error [%v, %v]: missing switch case, perhaps you have ',' after the last case"
+	SYNTAX_ERROR_UNDEFIND_RELATION_FOR_SWITCH_CASE         = "error [%v, %v]: undefined relation for switch case"
 )

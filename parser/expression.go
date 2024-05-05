@@ -44,24 +44,6 @@ var validTypes = map[lexer.TokenType]TypeAnnotation{
 
 type Expression interface{}
 
-// type OperationExpression struct {
-// 	LeftExpression  Expression
-// 	RightExpression Expression
-// 	Operation       Operation
-// }
-//
-// func NewOperationExpression(leftExpression Expression, operation Operation, rightExpression Expression) OperationExpression {
-// 	return OperationExpression{
-// 		LeftExpression:  leftExpression,
-// 		Operation:       operation,
-// 		RightExpression: rightExpression,
-// 	}
-// }
-//
-// func (e *OperationExpression) Equals(other OperationExpression) bool {
-// 	return reflect.DeepEqual(e, other)
-// }
-
 type OrExpression struct {
 	LeftExpression  Expression
 	RightExpression Expression

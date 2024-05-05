@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"tkom/lexer"
+	lex "tkom/lexer"
 )
 
 // Helper function to test equality of slices
@@ -20,6 +21,72 @@ func isSliceEqual(t *testing.T, slice1, slice2 []*Variable) bool {
 			t.Errorf("element mismatch at index %d: %v != %v", i, slice1[i], slice2[i])
 			return false
 		}
+	}
+	return true
+}
+
+// Helper function to create a lexer from a given input string
+func createLexer(input string) *lexer.Lexer {
+	source, _ := lexer.NewScanner(strings.NewReader(input))
+	return lexer.NewLexer(source, 1000, 1000, 1000)
+}
+
+// Helper function to create parser
+func createParser(t *testing.T, input string) *Parser {
+	lex := createLexer(input)
+	errorHandler := func(err error) {
+		t.Errorf("Parse Identifier error: %v", err)
+	}
+	return NewParser(lex, errorHandler)
+}
+
+// Helper function to check equality of two while statements
+func areWhileStatementsEqual(expected, statement *WhileStatement) bool {
+	if expected.Condition != statement.Condition {
+		return false
+	}
+
+	if len(expected.Instructions) != len(statement.Instructions) {
+		return false
+	}
+
+	for i := range expected.Instructions {
+		if !reflect.DeepEqual(expected.Instructions[i], statement.Instructions[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef) bool {
+	if functionDefinition.Name != expected.Name {
+		t.Errorf("expected Name: %s, got: %s", expected.Name, functionDefinition.Name)
+		return false
+	}
+
+	if !isSliceEqual(t, functionDefinition.Parameters, expected.Parameters) {
+		t.Errorf("expected Parameters: %v, got: %v", expected.Parameters, functionDefinition.Parameters)
+		return false
+	}
+
+	if !reflect.DeepEqual(functionDefinition.Statements, expected.Statements) {
+		t.Errorf("expected Block: %v, got: %v", expected.Statements, functionDefinition.Statements)
+		return false
+	}
+
+	if functionDefinition.Type != nil && expected.Type != nil && *functionDefinition.Type != *expected.Type {
+		t.Errorf("expected Type: %v, got: %v", *expected.Type, *functionDefinition.Type)
+		return false
+	}
+
+	if functionDefinition.Position != expected.Position {
+		t.Errorf("expected Position: %v, got: %v", expected.Position, functionDefinition.Position)
+		return false
+	}
+
+	if functionDefinition.Position != expected.Position {
+		t.Errorf("expected Position: %v, got: %v", expected.Position, functionDefinition.Position)
+		return false
 	}
 	return true
 }
@@ -470,9 +537,9 @@ func TestSwitchStatementWithIdentifier(t *testing.T) {
 		NewSwitchCase(NewOrExpression(
 			NewGreaterThanExpression(expression, 2),
 			NewGreaterThanExpression(expression, 10)),
-			newFunctionCall(NewIdentifier("fun1", lexer.NewPosition(2, 21)), nil)),
-		NewSwitchCase(NewGreaterOrEqualExpression(expression, 10), 
-			newFunctionCall(NewIdentifier("fun2", lexer.NewPosition(2, 10)), nil)),
+			NewFunctionCall(NewIdentifier("fun1", lexer.NewPosition(2, 21)), nil)),
+		NewSwitchCase(NewGreaterOrEqualExpression(expression, 10),
+			NewFunctionCall(NewIdentifier("fun2", lexer.NewPosition(2, 10)), nil)),
 	}
 	expected := NewSwitchStatement(nil, expression, cases)
 	parser := createParser(t, input)
@@ -507,69 +574,141 @@ func TestSwitchStatementWithExpression(t *testing.T) {
 	}
 }
 
-// Helper function to check equality of two while statements
-func areWhileStatementsEqual(expected, statement *WhileStatement) bool {
-	if expected.Condition != statement.Condition {
-		return false
+func TestParseProgram(t *testing.T) {
+	input := `main() {
+    int a := 10
+    int b := second()
+    a = a - b
+
+    if a > b {
+        a = 0
+    } 
+    else {
+        b = 0
+    }
+}`
+
+	statements := []Statement{
+		NewVariable(lex.INT, NewIdentifier("a", lexer.NewPosition(2, 9)), 10),
+		NewVariable(
+			lex.INT,
+			NewIdentifier("b", lexer.NewPosition(3, 9)),
+			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), []Expression{}),
+		),
+		NewAssignment(
+			NewIdentifier("a", lexer.NewPosition(4, 5)),
+			NewSubstractExpression(
+				NewIdentifier("a", lexer.NewPosition(4, 9)),
+				NewIdentifier("b", lexer.NewPosition(4, 13)),
+			),
+		),
+		NewIfStatement(
+			NewGreaterThanExpression(
+				NewIdentifier("a", lexer.NewPosition(6, 8)),
+				NewIdentifier("b", lexer.NewPosition(6, 12)),
+			),
+			[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
+			[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+		),
 	}
 
-	if len(expected.Instructions) != len(statement.Instructions) {
-		return false
+	funDefs := map[string]*FunDef{
+		"main": NewFunctionDefinition("main", nil, nil, statements, lexer.NewPosition(1, 1)),
 	}
 
-	for i := range expected.Instructions {
-		if !reflect.DeepEqual(expected.Instructions[i], statement.Instructions[i]) {
-			return false
-		}
-	}
+	expected := NewProgram(funDefs)
+	parser := createParser(t, input)
+	program := parser.ParseProgram()
 
-	return true
+	// if reflect.DeepEqual(expected, program) {
+	if !program.Equals(expected) {
+		t.Errorf("Program not parsed correctly, expected: %v, got: %v", expected, program)
+	}
 }
 
-// Helper function to create a lexer from a given input string
-func createLexer(input string) *lexer.Lexer {
-	source, _ := lexer.NewScanner(strings.NewReader(input))
-	return lexer.NewLexer(source, 1000, 1000, 1000)
+func TestFunctionsEquals(t *testing.T) {
+	funA := NewFunctionDefinition(
+		"main",
+		nil,
+		nil,
+		[]Statement{
+			NewVariable(lex.INT, NewIdentifier("a", lexer.NewPosition(1, 5)), 10),
+			NewIfStatement(
+				NewGreaterThanExpression(
+					NewIdentifier("a", lexer.NewPosition(6, 8)),
+					NewIdentifier("b", lexer.NewPosition(6, 12)),
+				),
+				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
+				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+			),
+		},
+		lex.NewPosition(1, 1),
+	)
+
+	funB := NewFunctionDefinition(
+		"main",
+		nil,
+		nil,
+		[]Statement{
+			NewVariable(lex.INT, NewIdentifier("a", lexer.NewPosition(1, 5)), 10),
+			NewIfStatement(
+				NewGreaterThanExpression(
+					NewIdentifier("a", lexer.NewPosition(6, 8)),
+					NewIdentifier("b", lexer.NewPosition(6, 12)),
+				),
+				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
+				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+			),
+		},
+		lex.NewPosition(1, 1),
+	)
+
+	if !funA.Equals(funB) {
+		t.Errorf("Functions are not equal, expected: %v, got: %v", funA, funB)
+	}
 }
 
-// Helper function to create parser
-func createParser(t *testing.T, input string) *Parser {
-	lex := createLexer(input)
-	errorHandler := func(err error) {
-		t.Errorf("Parse Identifier error: %v", err)
-	}
-	return NewParser(lex, errorHandler)
-}
-
-func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef) bool {
-	if functionDefinition.Name != expected.Name {
-		t.Errorf("expected Name: %s, got: %s", expected.Name, functionDefinition.Name)
-		return false
-	}
-
-	if !isSliceEqual(t, functionDefinition.Parameters, expected.Parameters) {
-		t.Errorf("expected Parameters: %v, got: %v", expected.Parameters, functionDefinition.Parameters)
-		return false
-	}
-
-	if !reflect.DeepEqual(functionDefinition.Statements, expected.Statements) {
-		t.Errorf("expected Block: %v, got: %v", expected.Statements, functionDefinition.Statements)
-		return false
-	}
-
-	if functionDefinition.Type != nil && expected.Type != nil && *functionDefinition.Type != *expected.Type {
-		t.Errorf("expected Type: %v, got: %v", *expected.Type, *functionDefinition.Type)
-		return false
+func TestProgramsEquals(t *testing.T) {
+	statements := []Statement{
+		NewVariable(lex.INT, NewIdentifier("a", lexer.NewPosition(2, 9)), 10),
+		NewVariable(
+			lex.INT,
+			NewIdentifier("b", lexer.NewPosition(3, 9)),
+			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), nil),
+		),
+		NewAssignment(
+			NewIdentifier("a", lexer.NewPosition(4, 5)),
+			NewSubstractExpression(
+				NewIdentifier("a", lexer.NewPosition(4, 9)),
+				NewIdentifier("b", lexer.NewPosition(4, 13)),
+			),
+		),
+		NewIfStatement(
+			NewGreaterThanExpression(
+				NewIdentifier("a", lexer.NewPosition(6, 8)),
+				NewIdentifier("b", lexer.NewPosition(6, 12)),
+			),
+			[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
+			[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+		),
 	}
 
-	if functionDefinition.Position != expected.Position {
-		t.Errorf("expected Position: %v, got: %v", expected.Position, functionDefinition.Position)
-		return false
+	funDefsA := map[string]*FunDef{
+		"main": NewFunctionDefinition("main", nil, nil, statements, lexer.NewPosition(1, 1)),
 	}
 
-	if functionDefinition.Position != expected.Position {
-		t.Errorf("expected Position: %v, got: %v", expected.Position, functionDefinition.Position)
-		return false
+	funDefsB := map[string]*FunDef{
+		"main": NewFunctionDefinition("main", nil, nil, statements, lexer.NewPosition(1, 1)),
 	}
-	return true
+
+	if !funDefsA["main"].Equals(funDefsB["main"]) {
+		t.Errorf("Programs are not equal, expected: %v, got: %v", funDefsA, funDefsB)
+	}
+
+	programA := NewProgram(funDefsA)
+	programB := NewProgram(funDefsB)
+
+	if !programA.Equals(programB) {
+		t.Errorf("Programs are not equal, expected: %v, got: %v", programA, programB)
+	}
 }

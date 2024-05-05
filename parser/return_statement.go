@@ -1,11 +1,11 @@
 package parser
 
-type ReturnStatmenet struct {
+type ReturnStatement struct {
     Expression Expression
 }
 
-func NewReturnStatement(expression Expression) *ReturnStatmenet {
-    return &ReturnStatmenet{
+func NewReturnStatement(expression Expression) *ReturnStatement {
+    return &ReturnStatement{
         Expression: expression,
     }
 }

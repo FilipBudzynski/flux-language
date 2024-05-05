@@ -14,3 +14,16 @@ func NewIdentifier(name string, position lex.Position) Identifier {
 		Position: position,
 	}
 }
+
+func (i *Identifier) Equals(other *Identifier) bool {
+    if i.Name != other.Name {
+        return false
+    }
+    if i.Position.Line != other.Position.Line {
+        return false
+    }
+    if i.Position.Column != other.Position.Column {
+        return false
+    }
+    return true
+}

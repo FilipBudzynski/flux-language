@@ -51,14 +51,16 @@ func (p *Parser) requierAndConsume(tokenType lex.TokenType, syntaxErrMessage str
 func (p *Parser) ParseProgram() *Program {
 	defer p.recoverFromPanic()
 
-	functions := map[string]FunDef{}
+	functions := map[string]*FunDef{}
 
-	for funDef := p.parseFunDef(); funDef != nil; {
+	for funDef := p.parseFunDef(); funDef != nil; funDef = p.parseFunDef() {
 		if f, ok := functions[funDef.Name]; ok {
 			tokenCol := p.token.Position.Column
 			tokenLine := p.token.Position.Line
 			panic(fmt.Errorf(SYNTAX_ERROR_FUNCTION_REDEFINITION, tokenCol, tokenLine, f.Position.Line, f.Position.Column))
-		}
+		} else {
+            functions[funDef.Name] = funDef
+        }
 	}
 
 	if p.token.Type != lex.ETX {
@@ -278,7 +280,7 @@ func (p *Parser) parseFunctionCall(identifier Identifier) Statement {
 
 	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_CALL_NOT_CLOSED)
 
-	return newFunctionCall(identifier, arguments)
+	return NewFunctionCall(identifier, arguments)
 }
 
 // arguments = expression , { "," , expression } ;
@@ -286,7 +288,6 @@ func (p *Parser) parseArguments() []Expression { // return []Variable czy []Expr
 	expressions := []Expression{}
 
 	expression := p.parseExpression()
-	// na pewno?
 	if expression == nil {
 		return expressions
 	}
@@ -632,7 +633,7 @@ func (p *Parser) parseSwitchCase(leftExp Expression) Statement {
 }
 
 // return_statement = "return" , [ expression ] ;
-func (p *Parser) parseReturnStatement() *ReturnStatmenet {
+func (p *Parser) parseReturnStatement() *ReturnStatement {
 	if p.token.Type != lex.RETURN {
 		return nil
 	}
@@ -654,7 +655,6 @@ func (p *Parser) parseImplicitExpression(implicitLeft Expression) Expression {
 		if rightExpression == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Line, p.token.Position.Column, "OR"))
 		}
-		// leftExpression = NewExpression(leftExpression, OR, rightExpression)
 		leftExpression = NewOrExpression(leftExpression, rightExpression)
 	}
 	return leftExpression

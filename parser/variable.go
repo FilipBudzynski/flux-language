@@ -20,6 +20,19 @@ func NewVariable(variableType lex.TokenType, identifier Identifier, value any) *
 	}
 }
 
+func (v *Variable) Equals(other Variable) bool {
+	if v.Type != other.Type {
+		return false
+	}
+	if v.Value != other.Value {
+		return false
+	}
+	if !v.Identifier.Equals(&other.Identifier) {
+		return false
+	}
+	return false
+}
+
 // func convertValue(value any, expectedType reflect.Kind) (any, error) {
 // 	switch expectedType {
 // 	case reflect.Int:
@@ -43,9 +56,19 @@ type Assignemnt struct {
 	Identifier Identifier
 }
 
-func NewAssignment(identifier Identifier, value Expression) Assignemnt {
-	return Assignemnt{
+func NewAssignment(identifier Identifier, value Expression) *Assignemnt {
+	return &Assignemnt{
 		Identifier: identifier,
 		Value:      value,
 	}
+}
+
+func (v *Assignemnt) Equals(other Assignemnt) bool {
+	if v.Value != other.Value {
+		return false
+	}
+	if !v.Identifier.Equals(&other.Identifier) {
+		return false
+	}
+	return false
 }

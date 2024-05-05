@@ -6,7 +6,7 @@ type FunctionCall struct {
 	Identifier Identifier
 }
 
-func newFunctionCall(identifier Identifier, arguments []Expression) FunctionCall {
+func NewFunctionCall(identifier Identifier, arguments []Expression) FunctionCall {
 	return FunctionCall{
 		Identifier: identifier,
 		Arguments:  arguments,

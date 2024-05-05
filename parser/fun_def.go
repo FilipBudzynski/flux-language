@@ -1,6 +1,9 @@
 package parser
 
-import lex "tkom/lexer"
+import (
+	"reflect"
+	lex "tkom/lexer"
+)
 
 type FunDef struct {
 	Type       *lex.TokenType
@@ -18,4 +21,27 @@ func NewFunctionDefinition(name string, parameters []*Variable, funType *lex.Tok
 		Statements: statements,
 		Position:   position,
 	}
+}
+
+func (f *FunDef) Equals(other *FunDef) bool {
+	if f.Type != other.Type {
+		return false
+	}
+	if f.Name != other.Name {
+		return false
+	}
+	if len(f.Parameters) != len(other.Parameters) {
+		return false
+	}
+	for i, param := range f.Parameters {
+		if !param.Equals(*other.Parameters[i]) {
+			return false
+		}
+	}
+	for i, statement := range f.Statements {
+		if !reflect.DeepEqual(statement, other.Statements[i]) {
+			return false
+		}
+	}
+	return true
 }

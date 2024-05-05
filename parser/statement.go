@@ -1,3 +1,4 @@
 package parser
 
-type Statement interface{}
+type Statement interface{
+}

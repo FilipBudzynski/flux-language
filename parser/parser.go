@@ -197,7 +197,7 @@ func (p *Parser) parseStatement() Statement {
 	case lex.WHILE:
 		return p.parseWhileStatement()
 	case lex.SWITCH:
-    	return p.parseSwitchStatement()
+		return p.parseSwitchStatement()
 	case lex.RETURN:
 		return p.parseReturnStatement()
 	default:
@@ -272,7 +272,7 @@ func (p *Parser) parseFunctionCall(identifier Identifier) Statement {
 	if p.token.Type != lex.LEFT_PARENTHESIS {
 		return nil
 	}
-    p.consumeToken()
+	p.consumeToken()
 
 	arguments := p.parseArguments()
 
@@ -480,10 +480,10 @@ func (p *Parser) parseTerm() Expression {
 	var value any
 	switch p.token.Type {
 	case lex.IDENTIFIER:
-        value := p.parseIdentifierOrCall()
-        if value == nil {
+		value := p.parseIdentifierOrCall()
+		if value == nil {
 			panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Line, p.token.Position.Column, p.token.Type.TypeName()))
-        }
+		}
 		return value
 	case lex.CONST_INT:
 		value = p.token.Value.(int)

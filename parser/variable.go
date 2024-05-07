@@ -1,18 +1,14 @@
 package parser
 
-import (
-	lex "tkom/lexer"
-)
-
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
 
 type Variable struct {
 	Value      any
 	Identifier Identifier
-	Type       lex.TokenType
+	Type       TypeAnnotation
 }
 
-func NewVariable(variableType lex.TokenType, identifier Identifier, value any) *Variable {
+func NewVariable(variableType TypeAnnotation, identifier Identifier, value any) *Variable {
 	return &Variable{
 		Type:       variableType,
 		Identifier: identifier,
@@ -30,7 +26,7 @@ func (v *Variable) Equals(other Variable) bool {
 	if !v.Identifier.Equals(&other.Identifier) {
 		return false
 	}
-	return false
+	return true
 }
 
 // func convertValue(value any, expectedType reflect.Kind) (any, error) {

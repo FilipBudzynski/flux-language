@@ -6,14 +6,14 @@ import (
 )
 
 type FunDef struct {
-	Type       *lex.TokenType
+	Type       *TypeAnnotation
 	Parameters []*Variable
 	Name       string
 	Statements []Statement
 	Position   lex.Position
 }
 
-func NewFunctionDefinition(name string, parameters []*Variable, funType *lex.TokenType, statements []Statement, position lex.Position) *FunDef {
+func NewFunctionDefinition(name string, parameters []*Variable, funType *TypeAnnotation, statements []Statement, position lex.Position) *FunDef {
 	return &FunDef{
 		Name:       name,
 		Type:       funType,
@@ -38,6 +38,7 @@ func (f *FunDef) Equals(other *FunDef) bool {
 			return false
 		}
 	}
+
 	for i, statement := range f.Statements {
 		if !reflect.DeepEqual(statement, other.Statements[i]) {
 			return false

@@ -35,7 +35,7 @@ const (
 	STRING
 )
 
-var validTypes = map[lexer.TokenType]TypeAnnotation{
+var validTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
 	lexer.INT:    INT,
 	lexer.FLOAT:  FLOAT,
 	lexer.BOOL:   BOOL,
@@ -81,7 +81,7 @@ type EqualsExpression struct {
 	RightExpression Expression
 }
 
-func NewEqualsExpression(leftExpression Expression, rightExpression Expression) EqualsExpression {
+func NewEqualsExpression(leftExpression Expression, rightExpression Expression) Expression {
 	return EqualsExpression{
 		LeftExpression:  leftExpression,
 		RightExpression: rightExpression,

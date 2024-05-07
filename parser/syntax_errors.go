@@ -26,4 +26,6 @@ const (
 	SYNTAX_ERROR_NO_SWITCH_CASES                           = "error [%v, %v]: no switch cases defined"
 	ERROR_MISSING_SWITCH_CASE                              = "error [%v, %v]: missing switch case, perhaps you have ',' after the last case"
 	SYNTAX_ERROR_UNDEFIND_RELATION_FOR_SWITCH_CASE         = "error [%v, %v]: undefined relation for switch case"
+	SYNTA_ERROR_NO_RELATION_FOR_SWITCH_CASE                = "error [%v, %v]: no relation oporator for switch case"
+	SYNTAX_ERROR_NOT_VALID_TYPE_IN_FUNC                    = "error [%v, %v]: not valid type in function declaration"
 )

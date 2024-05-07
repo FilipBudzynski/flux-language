@@ -1,4 +1,4 @@
-package parser
+package ast
 
 type WhileStatement struct {
 	Condition    Expression

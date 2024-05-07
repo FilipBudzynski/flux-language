@@ -1,4 +1,4 @@
-package parser
+package ast
 
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
 

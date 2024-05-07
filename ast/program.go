@@ -1,4 +1,4 @@
-package parser
+package ast
 
 type Program struct {
 	functions map[string]*FunDef

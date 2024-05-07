@@ -1,4 +1,4 @@
-package parser
+package ast
 
 
 type FunctionCall struct {

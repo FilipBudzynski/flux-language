@@ -1,4 +1,4 @@
-package parser
+package ast
 
 import (
 	"reflect"
@@ -35,7 +35,7 @@ const (
 	STRING
 )
 
-var validTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
+var ValidTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
 	lexer.INT:    INT,
 	lexer.FLOAT:  FLOAT,
 	lexer.BOOL:   BOOL,
@@ -343,17 +343,17 @@ func (e *BoolExpression) Equals(other Expression) bool {
 }
 
 type StringExpression struct {
-    Value    string
-    Position lexer.Position
+	Value    string
+	Position lexer.Position
 }
 
 func NewStringExpression(value string, position lexer.Position) StringExpression {
-    return StringExpression{
-        Value:    value,
-        Position: position,
-    }
+	return StringExpression{
+		Value:    value,
+		Position: position,
+	}
 }
 
 func (e *StringExpression) Equals(other Expression) bool {
-    return reflect.DeepEqual(e, other)
+	return reflect.DeepEqual(e, other)
 }

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	. "tkom/ast"
 	"tkom/lexer"
 )
 

@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	lex "tkom/lexer"
+    . "tkom/ast"
 )
 
 func (p *Parser) recoverFromPanic() {
@@ -83,7 +84,7 @@ func (p *Parser) parseFunDef() *FunDef {
 	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_DEF_NO_PARENTHASIS)
 
 	var funcType *TypeAnnotation
-	if t, ok := validTypeAnnotation[p.token.Type]; !ok { // p.parseTypeAnnotation()
+	if t, ok := ValidTypeAnnotation[p.token.Type]; !ok { // p.parseTypeAnnotation()
 		funcType = nil
 	} else {
 		funcType = &t
@@ -171,7 +172,7 @@ func (p *Parser) checkToken(tokenTypes ...lex.TokenType) bool {
 // type_annotation = "int" | "float" | "bool" | "str" ;
 func (p *Parser) parseTypeAnnotation() *TypeAnnotation {
 	var typeAnnotation *TypeAnnotation
-	if t, ok := validTypeAnnotation[p.token.Type]; !ok {
+	if t, ok := ValidTypeAnnotation[p.token.Type]; !ok {
 		return nil
 	} else {
 		p.consumeToken()
@@ -379,7 +380,7 @@ func (p *Parser) parseRelationCondition() Expression {
 	}
 
 	if factory, ok := operatorToFactory[p.token.Type]; ok {
-        operationType := p.token.Type.TypeName()
+		operationType := p.token.Type.TypeName()
 		position := p.token.Position
 		p.consumeToken()
 
@@ -540,9 +541,9 @@ func (p *Parser) parseConditionalStatement() *IfStatement {
 	}
 
 	instructions := p.parseBlock()
-    if instructions == nil {
-        panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT, p.token.Position.Line, p.token.Position.Column))
-    }
+	if instructions == nil {
+		panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT, p.token.Position.Line, p.token.Position.Column))
+	}
 
 	if p.token.Type != lex.ELSE {
 		return NewIfStatement(condition, instructions, nil)
@@ -550,9 +551,9 @@ func (p *Parser) parseConditionalStatement() *IfStatement {
 	p.consumeToken()
 
 	elseInstructions := p.parseBlock()
-    if elseInstructions == nil {
-        panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT, p.token.Position.Line, p.token.Position.Column))
-    }
+	if elseInstructions == nil {
+		panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT, p.token.Position.Line, p.token.Position.Column))
+	}
 
 	return NewIfStatement(condition, instructions, elseInstructions)
 }
@@ -570,9 +571,9 @@ func (p *Parser) parseWhileStatement() *WhileStatement {
 	}
 
 	instructions := p.parseBlock()
-    if instructions == nil {
-        panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_WHILE_STATEMENT, p.token.Position.Line, p.token.Position.Column))
-    }
+	if instructions == nil {
+		panic(fmt.Sprintf(SYNTAX_ERROR_EMPTY_BLOCK_IN_WHILE_STATEMENT, p.token.Position.Line, p.token.Position.Column))
+	}
 
 	return NewWhileStatement(condition, instructions)
 }

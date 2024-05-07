@@ -28,4 +28,9 @@ const (
 	SYNTAX_ERROR_UNDEFIND_RELATION_FOR_SWITCH_CASE         = "error [%v, %v]: undefined relation for switch case"
 	SYNTA_ERROR_NO_RELATION_FOR_SWITCH_CASE                = "error [%v, %v]: no relation oporator for switch case"
 	SYNTAX_ERROR_NOT_VALID_TYPE_IN_FUNC                    = "error [%v, %v]: not valid type in function declaration"
+	SYNTA_ERROR_NO_BLOCK_DEFINED                           = "error [%v, %v]: no block defined for the function declaration"
+	SYNTAX_ERROR_NO_VARIABLE_AFTER_COMMA                   = "error [%v, %v]: no variable after comma in switch case"
+	SYNTAX_ERROR_BAD_VARIABLE_DECLARATION                  = "error [%v, %v]: bad variable declaration in switch statement"
+	SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT               = "error [%v, %v]: empty block in if statement"
+	SYNTAX_ERROR_EMPTY_BLOCK_IN_WHILE_STATEMENT            = "error [%v, %v]: empty block in while statement"
 )

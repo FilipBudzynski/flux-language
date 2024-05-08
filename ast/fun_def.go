@@ -46,3 +46,7 @@ func (f *FunDef) Equals(other *FunDef) bool {
 	}
 	return true
 }
+
+func (f *FunDef) Accept(v Visitor) {
+	v.VisitFunDef(f)
+}

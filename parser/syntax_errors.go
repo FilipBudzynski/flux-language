@@ -7,6 +7,7 @@ const (
 	SYNTAX_ERROR_NO_IDENTIFIER                             = "error [%v, %v]: identifier requierd here but was ommited"
 	SYNTAX_ERROR_NO_VARIABLE_IDETIFIER                     = "error [%v, %v]: no identifier in variable declaration"
 	SYNTAX_ERROR_NO_TYPE                                   = "error [%v, %v]: no type for parameter group"
+	SYNTAX_ERROR_NO_PARAMETERS_AFTER_COMMA                 = "error [%v, %v]: no parameters defined after comma"
 	SYNTAX_ERROR_NO_TYPE_IN_CAST                           = "error [%v, %v]: no type in casted expression"
 	NO_ETX_TOKEN                                           = "program parsed but no ETX was found"
 	SYNTAX_ERROR_EXPECTED_RIGHT_BRACE                      = "error [%v, %v]: expected right brace"
@@ -34,3 +35,17 @@ const (
 	SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT               = "error [%v, %v]: empty block in if statement"
 	SYNTAX_ERROR_EMPTY_BLOCK_IN_WHILE_STATEMENT            = "error [%v, %v]: empty block in while statement"
 )
+
+type ParserError struct {
+	Message string
+}
+
+func NewParserError(message string) *ParserError {
+	return &ParserError{
+		Message: message,
+	}
+}
+
+func (e *ParserError) Error() string {
+	return e.Message
+}

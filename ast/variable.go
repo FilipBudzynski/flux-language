@@ -1,18 +1,25 @@
 package ast
 
+import (
+	"reflect"
+	"tkom/lexer"
+)
+
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
 
 type Variable struct {
-	Value      any
-	Identifier Identifier
-	Type       TypeAnnotation
+	Value    any
+	Name     string
+	Type     TypeAnnotation
+	Position lexer.Position
 }
 
-func NewVariable(variableType TypeAnnotation, identifier Identifier, value any) *Variable {
+func NewVariable(variableType TypeAnnotation, name string, value any, position lexer.Position) *Variable {
 	return &Variable{
-		Type:       variableType,
-		Identifier: identifier,
-		Value:      value,
+		Type:     variableType,
+		Name:     name,
+		Value:    value,
+		Position: position,
 	}
 }
 
@@ -23,29 +30,14 @@ func (v *Variable) Equals(other Variable) bool {
 	if v.Value != other.Value {
 		return false
 	}
-	if !v.Identifier.Equals(&other.Identifier) {
+	if v.Name != other.Name {
+		return false
+	}
+	if !reflect.DeepEqual(v.Position, other.Position) {
 		return false
 	}
 	return true
 }
-
-// func convertValue(value any, expectedType reflect.Kind) (any, error) {
-// 	switch expectedType {
-// 	case reflect.Int:
-// 		if v, ok := value.(int); ok {
-// 			return v, nil
-// 		}
-// 	case reflect.Float64:
-// 		if v, ok := value.(float64); ok {
-// 			return v, nil
-// 		}
-// 	case reflect.String:
-// 		if v, ok := value.(string); ok {
-// 			return v, nil
-// 		}
-// 	}
-// 	return nil, fmt.Errorf(ERROR_WRONG_VALUE_IN_DECLARATION, expectedType, value)
-// }
 
 type Assignemnt struct {
 	Value      Expression

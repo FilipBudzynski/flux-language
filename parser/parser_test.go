@@ -8,23 +8,6 @@ import (
 	"tkom/lexer"
 )
 
-// Helper function to test equality of slices
-func isSliceEqual(t *testing.T, slice1, slice2 []*Variable) bool {
-	if len(slice1) != len(slice2) {
-		t.Errorf("slice length mismatch: %d != %d", len(slice1), len(slice2))
-		return false
-	}
-
-	// Iterate over the elements of the slices and compare them
-	for i := range slice1 {
-		if !reflect.DeepEqual(slice1[i], slice2[i]) {
-			t.Errorf("element mismatch at index %d: %v != %v", i, slice1[i], slice2[i])
-			return false
-		}
-	}
-	return true
-}
-
 // Helper function to create a lexer from a given input string
 func createLexer(input string) *lexer.Lexer {
 	source, _ := lexer.NewScanner(strings.NewReader(input))
@@ -42,7 +25,7 @@ func createParser(t *testing.T, input string) *Parser {
 
 // Helper function to check equality of two while statements
 func areWhileStatementsEqual(expected, statement *WhileStatement) bool {
-	if expected.Condition != statement.Condition {
+	if !reflect.DeepEqual(expected.Condition, statement.Condition) {
 		return false
 	}
 
@@ -58,35 +41,6 @@ func areWhileStatementsEqual(expected, statement *WhileStatement) bool {
 	return true
 }
 
-func isFunctionDefinitionEqual(t *testing.T, functionDefinition, expected FunDef) bool {
-	if functionDefinition.Name != expected.Name {
-		t.Errorf("expected Name: %s, got: %s", expected.Name, functionDefinition.Name)
-		return false
-	}
-
-	if !isSliceEqual(t, functionDefinition.Parameters, expected.Parameters) {
-		t.Errorf("expected Parameters: %v, got: %v", expected.Parameters, functionDefinition.Parameters)
-		return false
-	}
-
-	if !reflect.DeepEqual(functionDefinition.Statements, expected.Statements) {
-		t.Errorf("expected Block: %v, got: %v", expected.Statements, functionDefinition.Statements)
-		return false
-	}
-
-	if functionDefinition.Type != nil && expected.Type != nil && *functionDefinition.Type != *expected.Type {
-		t.Errorf("expected Type: %v, got: %v", *expected.Type, *functionDefinition.Type)
-		return false
-	}
-
-	if functionDefinition.Position != expected.Position {
-		t.Errorf("expected Position: %v, got: %v", expected.Position, functionDefinition.Position)
-		return false
-	}
-
-	return true
-}
-
 func TestParseParameterGroup(t *testing.T) {
 	input := "param1, param2, param3 string"
 	parser := createParser(t, input)
@@ -98,9 +52,9 @@ func TestParseParameterGroup(t *testing.T) {
 	}
 
 	expected := []*Variable{
-		NewVariable(STRING, NewIdentifier("param1", lexer.NewPosition(1, 1)), nil),
-		NewVariable(STRING, NewIdentifier("param2", lexer.NewPosition(1, 9)), nil),
-		NewVariable(STRING, NewIdentifier("param3", lexer.NewPosition(1, 17)), nil),
+		NewVariable(STRING, "param1", nil, lexer.NewPosition(1, 1)),
+		NewVariable(STRING, "param2", nil, lexer.NewPosition(1, 9)),
+		NewVariable(STRING, "param3", nil, lexer.NewPosition(1, 17)),
 	}
 
 	for i, param := range params {
@@ -117,9 +71,9 @@ func TestParseParameterGroup(t *testing.T) {
 func TestParseParameters(t *testing.T) {
 	input := "param1 int, param2 string, param3 bool"
 	expected := []*Variable{
-		NewVariable(INT, NewIdentifier("param1", lexer.NewPosition(1, 1)), nil),
-		NewVariable(STRING, NewIdentifier("param2", lexer.NewPosition(1, 13)), nil),
-		NewVariable(BOOL, NewIdentifier("param3", lexer.NewPosition(1, 28)), nil),
+		NewVariable(INT, "param1", nil, lexer.NewPosition(1, 1)),
+		NewVariable(STRING, "param2", nil, lexer.NewPosition(1, 13)),
+		NewVariable(BOOL, "param3", nil, lexer.NewPosition(1, 28)),
 	}
 	parser := createParser(t, input)
 
@@ -135,8 +89,8 @@ func TestParseParameters(t *testing.T) {
 	}
 
 	for i, param := range params {
-		if param.Identifier != expected[i].Identifier {
-			t.Errorf("Expected parameter name %s, got %s", expected[i].Identifier.Name, param.Identifier.Name)
+		if !param.Equals(*expected[i]) {
+			t.Errorf("Expected parameter name %s, got %s", expected[i].Name, param.Name)
 		}
 		if param.Type != expected[i].Type {
 			t.Errorf("Expected parameter type %v, got %v", expected[i].Type, param.Type)
@@ -162,8 +116,8 @@ func TestParseIdentifier(t *testing.T) {
 
 func TestParseEmptyFunctionDefinition(t *testing.T) {
 	input := "myFunction(a int, b string) { }"
-	variable1 := NewVariable(INT, NewIdentifier("a", lexer.NewPosition(1, 12)), nil)
-	variable2 := NewVariable(STRING, NewIdentifier("b", lexer.NewPosition(1, 19)), nil)
+	variable1 := NewVariable(INT, "a", nil, lexer.NewPosition(1, 12))
+	variable2 := NewVariable(STRING, "b", nil, lexer.NewPosition(1, 19))
 	parameters := []*Variable{variable1, variable2}
 	expected := NewFunctionDefinition("myFunction", parameters, nil, []Statement{}, lexer.NewPosition(1, 1))
 
@@ -192,8 +146,8 @@ func TestParseExpressionIdentifierOnly(t *testing.T) {
 
 	expression := parser.parseExpression()
 
-	if expression != expected {
-		t.Errorf("expressions are not equal, expected: %v, got: %v", expected, expression)
+	if expr, ok := expression.(Identifier); !ok {
+		t.Errorf("expressions are not equal, expected: %v, got: %v", expected, expr)
 	}
 }
 
@@ -214,7 +168,7 @@ func TestParseExpressionGreater(t *testing.T) {
 	expression := parser.parseExpression()
 
 	// type assertion
-	if _, ok := expression.(GreaterOrEqualExpression); !ok {
+	if _, ok := expression.(*GreaterOrEqualExpression); !ok {
 		t.Errorf("Parsed expression is not of type OperationExpression")
 		return
 	}
@@ -234,20 +188,21 @@ func TestParseVariableDeclaration(t *testing.T) {
 		{
 			input: "int a := 2 - 3",
 			expected: &Variable{
-				Type:       INT,
-				Identifier: NewIdentifier("a", lexer.NewPosition(1, 5)),
+				Type: INT,
+				Name: "a",
 				Value: NewSubstractExpression(
 					NewIntExpression(2, lexer.NewPosition(1, 10)),
 					NewIntExpression(3, lexer.NewPosition(1, 14)),
 					lexer.NewPosition(1, 12),
 				),
+				Position: lexer.NewPosition(1, 5),
 			},
 		},
 		{
 			input: "int a := 2 + 2 + 2",
 			expected: &Variable{
-				Type:       INT,
-				Identifier: NewIdentifier("a", lexer.NewPosition(1, 5)),
+				Type: INT,
+				Name: "a",
 				Value: NewSumExpression(
 					NewSumExpression(
 						NewIntExpression(2, lexer.NewPosition(1, 10)),
@@ -256,6 +211,7 @@ func TestParseVariableDeclaration(t *testing.T) {
 					NewIntExpression(2, lexer.NewPosition(1, 18)),
 					lexer.NewPosition(1, 16),
 				),
+				Position: lexer.NewPosition(1, 5),
 			},
 		},
 	}
@@ -289,7 +245,7 @@ func TestParseNegateExpression(t *testing.T) {
 		parser := createParser(t, test.input)
 		statement := parser.parseExpression()
 
-		if statement, ok := statement.(NegateExpression); !ok {
+		if statement, ok := statement.(*NegateExpression); !ok {
 			t.Errorf("Parsed statement is not of type Variable")
 			t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 			t.Errorf("Expected type: %v", reflect.TypeOf(test.expected))
@@ -305,8 +261,7 @@ func TestParseNegateExpression(t *testing.T) {
 func TestParseBoolExpression(t *testing.T) {
 	input := "bool c := true"
 
-	identifier := NewIdentifier("c", lexer.NewPosition(1, 6))
-	expected := NewVariable(BOOL, identifier, NewBoolExpression(true, lexer.NewPosition(1, 11)))
+	expected := NewVariable(BOOL, "c", NewBoolExpression(true, lexer.NewPosition(1, 11)), lexer.NewPosition(1, 6))
 	parser := createParser(t, input)
 
 	statement := parser.parseVariableDeclaration()
@@ -332,7 +287,7 @@ func TestParseFloatExpression(t *testing.T) {
 
 	statement := parser.parseExpression()
 
-	if statement, ok := statement.(FloatExpression); !ok {
+	if statement, ok := statement.(*FloatExpression); !ok {
 		t.Errorf("Parsed statement is not of type Float")
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
@@ -352,7 +307,7 @@ func TestParseStringExpression(t *testing.T) {
 
 	statement := parser.parseExpression()
 
-	if statement, ok := statement.(StringExpression); !ok {
+	if statement, ok := statement.(*StringExpression); !ok {
 		t.Errorf("Parsed statement is not of type Float")
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
@@ -381,7 +336,7 @@ func TestParseParenthesisExpression(t *testing.T) {
 
 	statement := parser.parseExpression()
 
-	if statement, ok := statement.(MultiplyExpression); !ok {
+	if statement, ok := statement.(*MultiplyExpression); !ok {
 		t.Errorf("Parsed statement is not of type %v", reflect.TypeOf(expected))
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
@@ -404,14 +359,16 @@ func TestParseOrAndExpression(t *testing.T) {
 
 	statement := parser.parseExpression()
 
-	if statement, ok := statement.(OrExpression); !ok {
+	if statement, ok := statement.(*OrExpression); !ok {
 		t.Errorf("Parsed statement is not of type OrExpression")
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
 	}
 
-	if expected.Equals(statement.(OrExpression)) {
-		t.Errorf("And with Or expressions not parsed correctly, expected: %v, got: %v", expected, statement)
+	if st, ok := statement.(*OrExpression); ok {
+		if !expected.Equals(st) {
+			t.Errorf("And with Or expressions not parsed correctly, expected: %v, got: %v", expected, statement)
+		}
 	}
 }
 
@@ -474,14 +431,15 @@ func TestSwitchStatement(t *testing.T) {
     }`
 
 	idA := NewIdentifier("a", lexer.NewPosition(1, 8))
-	variable := NewVariable(INT, idA, NewIntExpression(2, lexer.NewPosition(1, 17)))
+	variable := NewVariable(INT, "a", NewIntExpression(2, lexer.NewPosition(1, 17)), lexer.NewPosition(1, 8))
 	variables := []*Variable{variable}
 	cases := []Statement{
 		NewSwitchCase(NewAndExpression(
 			NewGreaterThanExpression(idA, NewIntExpression(2, lexer.NewPosition(2, 12)), lexer.NewPosition(2, 8)),
 			NewLessThanExpression(idA, NewIntExpression(10, lexer.NewPosition(2, 22)), lexer.NewPosition(2, 15)), lexer.NewPosition(2, 11)),
-			"Kasia"),
-		NewSwitchCase(NewGreaterOrEqualExpression(idA, NewIntExpression(10, lexer.NewPosition(3, 14)), lexer.NewPosition(3, 8)), "Asia"),
+			NewStringExpression("Kasia", lexer.NewPosition(2, 29))),
+		NewSwitchCase(NewGreaterOrEqualExpression(idA, NewIntExpression(10, lexer.NewPosition(3, 14)), lexer.NewPosition(3, 8)),
+			NewStringExpression("Asia", lexer.NewPosition(3, 29))),
 	}
 	expected := NewSwitchStatement(variables, nil, cases)
 	parser := createParser(t, input)
@@ -524,6 +482,36 @@ func TestSwitchStatementWithIdentifier(t *testing.T) {
 	}
 }
 
+func TestPraseSwitchError(t *testing.T) {
+	input := `switch {
+    >30 => 2
+    }`
+	expectedError := ParserError{"error [2, 5]: missing switch case, perhaps you have ',' after the last case"}
+	errors := []error{}
+	errorHandler := func(err error) { errors = append(errors, err) }
+
+	parser := createParser(t, input)
+	parser.ErrorHandler = errorHandler
+
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Errorf("expected panic but didn't")
+			return
+		}
+		parser.ErrorHandler(err.(error))
+	}()
+
+	_ = parser.parseSwitchStatement()
+
+	err := errors[0]
+	if err == nil {
+		t.Errorf("expected panic but didn't")
+	} else if err.Error() != expectedError.Error() {
+		t.Errorf("expected %v error message, got: %v", expectedError.Error(), err.Error())
+	}
+}
+
 func TestParseProgram(t *testing.T) {
 	input := `main() {
     int a := 10
@@ -539,11 +527,12 @@ func TestParseProgram(t *testing.T) {
 }`
 
 	statements := []Statement{
-		NewVariable(INT, NewIdentifier("a", lexer.NewPosition(2, 9)), NewIntExpression(10, lexer.NewPosition(2, 14))),
+		NewVariable(INT, "a", NewIntExpression(10, lexer.NewPosition(2, 14)), lexer.NewPosition(2, 9)),
 		NewVariable(
 			INT,
-			NewIdentifier("b", lexer.NewPosition(3, 9)),
+			"b",
 			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), []Expression{}),
+			lexer.NewPosition(3, 9),
 		),
 		NewAssignment(
 			NewIdentifier("a", lexer.NewPosition(4, 5)),
@@ -584,15 +573,15 @@ func TestFunctionsEquals(t *testing.T) {
 		nil,
 		nil,
 		[]Statement{
-			NewVariable(INT, NewIdentifier("a", lexer.NewPosition(1, 5)), 10),
+			NewVariable(INT, "a", 10, lexer.NewPosition(1, 5)),
 			NewIfStatement(
 				NewGreaterThanExpression(
 					NewIdentifier("a", lexer.NewPosition(6, 8)),
 					NewIdentifier("b", lexer.NewPosition(6, 12)),
 					lexer.NewPosition(5, 10),
 				),
-				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
-				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), NewIntExpression(0, lexer.NewPosition(7, 13)))},
+				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), NewIntExpression(0, lexer.NewPosition(10, 13)))},
 			),
 		},
 		lexer.NewPosition(1, 1),
@@ -603,15 +592,15 @@ func TestFunctionsEquals(t *testing.T) {
 		nil,
 		nil,
 		[]Statement{
-			NewVariable(INT, NewIdentifier("a", lexer.NewPosition(1, 5)), 10),
+			NewVariable(INT, "a", 10, lexer.NewPosition(1, 5)),
 			NewIfStatement(
 				NewGreaterThanExpression(
 					NewIdentifier("a", lexer.NewPosition(6, 8)),
 					NewIdentifier("b", lexer.NewPosition(6, 12)),
 					lexer.NewPosition(5, 10),
 				),
-				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
-				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+				[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), NewIntExpression(0, lexer.NewPosition(7, 13)))},
+				[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), NewIntExpression(0, lexer.NewPosition(10, 13)))},
 			),
 		},
 		lexer.NewPosition(1, 1),
@@ -624,11 +613,12 @@ func TestFunctionsEquals(t *testing.T) {
 
 func TestProgramsEquals(t *testing.T) {
 	statements := []Statement{
-		NewVariable(INT, NewIdentifier("a", lexer.NewPosition(2, 9)), 10),
+		NewVariable(INT, "a", 10, lexer.NewPosition(1, 5)),
 		NewVariable(
 			INT,
-			NewIdentifier("b", lexer.NewPosition(3, 9)),
+			"b",
 			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), nil),
+			lexer.NewPosition(3, 9),
 		),
 		NewAssignment(
 			NewIdentifier("a", lexer.NewPosition(4, 5)),
@@ -644,8 +634,8 @@ func TestProgramsEquals(t *testing.T) {
 				NewIdentifier("b", lexer.NewPosition(6, 12)),
 				lexer.NewPosition(4, 11),
 			),
-			[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), 0)},
-			[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), 0)},
+			[]Statement{NewAssignment(NewIdentifier("a", lexer.NewPosition(7, 9)), NewIntExpression(0, lexer.NewPosition(7, 13)))},
+			[]Statement{NewAssignment(NewIdentifier("b", lexer.NewPosition(10, 9)), NewIntExpression(0, lexer.NewPosition(10, 13)))},
 		),
 	}
 

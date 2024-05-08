@@ -7,95 +7,96 @@ import (
 
 type ASTPrinter struct{}
 
-func (a *ASTPrinter) visitIntExpression(e *ast.IntExpression) {
+func (a *ASTPrinter) VisitIntExpression(e *ast.IntExpression) {
 	fmt.Print(e.Value)
 }
 
-func (a *ASTPrinter) visitFloatExpression(e *ast.FloatExpression) {
+func (a *ASTPrinter) VisitFloatExpression(e *ast.FloatExpression) {
 	fmt.Print(e.Value)
 }
 
-func (a *ASTPrinter) visitStringExpression(e *ast.StringExpression) {
+func (a *ASTPrinter) VisitStringExpression(e *ast.StringExpression) {
 	fmt.Print(e.Value)
 }
 
-func (a *ASTPrinter) visitBoolExpression(e *ast.BoolExpression) {
+func (a *ASTPrinter) VisitBoolExpression(e *ast.BoolExpression) {
 	fmt.Print(e.Value)
 }
 
-func (a *ASTPrinter) visitIdentifier(e *ast.Identifier) {
+func (a *ASTPrinter) VisitIdentifier(e *ast.Identifier) {
 	fmt.Print(e.Name)
 }
 
-func (a *ASTPrinter) visitFunctionCall(e *ast.FunctionCall) {
+func (a *ASTPrinter) VisitFunctionCall(e *ast.FunctionCall) {
+    e.Accept(a)
 	//     for _, e2 := range e.Arguments {
 	//         e2.Accept(v Visitor)
 	//     }
 	// 	fmt.Printf("%v()", e.Identifier.Name)
 }
 
-func (a *ASTPrinter) visitVariable(e *ast.Variable) {
+func (a *ASTPrinter) VisitVariable(e *ast.Variable) {
 }
 
-func (a *ASTPrinter) visitNegateExpression(e *ast.NegateExpression) {
+func (a *ASTPrinter) VisitNegateExpression(e *ast.NegateExpression) {
 }
 
-func (a *ASTPrinter) visitCastExpression(e *ast.CastExpression) {
+func (a *ASTPrinter) VisitCastExpression(e *ast.CastExpression) {
 }
 
-func (a *ASTPrinter) visitMultiplyExpression(e *ast.MultiplyExpression) {
+func (a *ASTPrinter) VisitMultiplyExpression(e *ast.MultiplyExpression) {
 }
 
-func (a *ASTPrinter) visitDivideExpression(e *ast.DivideExpression) {
+func (a *ASTPrinter) VisitDivideExpression(e *ast.DivideExpression) {
 }
 
-func (a *ASTPrinter) visitSumExpression(e *ast.SumExpression) {
+func (a *ASTPrinter) VisitSumExpression(e *ast.SumExpression) {
 }
 
-func (a *ASTPrinter) visitSubstractExpression(e *ast.SubstractExpression) {
+func (a *ASTPrinter) VisitSubstractExpression(e *ast.SubstractExpression) {
 }
 
-func (a *ASTPrinter) visitEqualsExpression(e *ast.EqualsExpression) {
+func (a *ASTPrinter) VisitEqualsExpression(e *ast.EqualsExpression) {
 }
 
-func (a *ASTPrinter) visitNotEqualsExpression(e *ast.NotEqualsExpression) {
+func (a *ASTPrinter) VisitNotEqualsExpression(e *ast.NotEqualsExpression) {
 }
 
-func (a *ASTPrinter) visitGreaterThenExpression(e *ast.GreaterThanExpression) {
+func (a *ASTPrinter) VisitGreaterThanExpression(e *ast.GreaterThanExpression) {
 }
 
-func (a *ASTPrinter) visitLessThenExpression(e *ast.LessThanExpression) {
+func (a *ASTPrinter) VisitLessThanExpression(e *ast.LessThanExpression) {
 }
 
-func (a *ASTPrinter) visitGreaterOrEqualExpression(e *ast.GreaterOrEqualExpression) {
+func (a *ASTPrinter) VisitGreaterOrEqualExpression(e *ast.GreaterOrEqualExpression) {
 }
 
-func (a *ASTPrinter) visitLessOrEqualExpression(e *ast.LessOrEqualExpression) {
+func (a *ASTPrinter) VisitLessOrEqualExpression(e *ast.LessOrEqualExpression) {
 }
 
-func (a *ASTPrinter) visitAndExpression(e *ast.AndExpression) {
+func (a *ASTPrinter) VisitAndExpression(e *ast.AndExpression) {
 }
 
-func (a *ASTPrinter) visitOrExpression(e *ast.OrExpression) {
+func (a *ASTPrinter) VisitOrExpression(e *ast.OrExpression) {
 }
 
-func (a *ASTPrinter) visitIfStatement(e *ast.IfStatement) {
+func (a *ASTPrinter) VisitIfStatement(e *ast.IfStatement) {
 }
 
-func (a *ASTPrinter) visitReturnStatement(e *ast.ReturnStatement) {
+func (a *ASTPrinter) VisitReturnStatement(e *ast.ReturnStatement) {
 }
 
-func (a *ASTPrinter) visitSwitchStatement(e *ast.SwitchStatement) {
+func (a *ASTPrinter) VisitSwitchStatement(e *ast.SwitchStatement) {
 }
 
-func (a *ASTPrinter) visitSwitchCase(e *ast.SwitchCase) {
+func (a *ASTPrinter) VisitSwitchCase(e *ast.SwitchCase) {
 }
 
-func (a *ASTPrinter) visitWhileStatement(e *ast.WhileStatement) {
+func (a *ASTPrinter) VisitWhileStatement(e *ast.WhileStatement) {
 }
 
-func (a *ASTPrinter) visitFunDef(e *ast.FunDef) {
+func (a *ASTPrinter) VisitFunDef(e *ast.FunDef) {
 }
 
-func (a *ASTPrinter) visitProgram(e *ast.Program) {
+func (a *ASTPrinter) VisitProgram(e *ast.Program) {
 }

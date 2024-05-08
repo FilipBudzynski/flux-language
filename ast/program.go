@@ -14,10 +14,14 @@ func (p *Program) Equals(other *Program) bool {
 	}
 
 	for k, v := range p.functions {
-	    if !v.Equals(other.functions[k]) {
-	        return false
-	    }
+		if !v.Equals(other.functions[k]) {
+			return false
+		}
 	}
-    
+
 	return true
+}
+
+func (p *Program) Accept(v Visitor) {
+	v.VisitProgram(p)
 }

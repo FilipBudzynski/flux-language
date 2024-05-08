@@ -36,6 +36,10 @@ func (s *SwitchStatement) Equals(other SwitchStatement) bool {
     return true
 }
 
+func (s *SwitchStatement) Accept(v Visitor) {
+    v.VisitSwitchStatement(s)
+}
+
 type SwitchCase struct {
 	CaseExpression   Expression
 	OutputExpression Expression // block lub expression
@@ -52,8 +56,17 @@ type DefaultSwitchCase struct {
 	OutputExpression Expression
 }
 
+func (s *SwitchCase) Accept(v Visitor) {
+    v.VisitSwitchCase(s)
+}
+
 func NewDefaultCase(outputExpression Expression) *DefaultSwitchCase {
     return &DefaultSwitchCase{
         OutputExpression: outputExpression,
     }
 }
+
+func (d *DefaultSwitchCase) Accept(v Visitor) {
+    v.VisitDefaultSwitchCase(d)
+}
+

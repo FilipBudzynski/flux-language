@@ -9,3 +9,7 @@ func NewReturnStatement(expression Expression) *ReturnStatement {
         Expression: expression,
     }
 }
+
+func (r *ReturnStatement) Accept(v Visitor) {
+    v.VisitReturnStatement(r)
+}

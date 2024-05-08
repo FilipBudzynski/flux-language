@@ -9,7 +9,7 @@ const (
 	SYNTAX_ERROR_NO_TYPE                                   = "error [%v, %v]: no type for parameter group"
 	SYNTAX_ERROR_NO_PARAMETERS_AFTER_COMMA                 = "error [%v, %v]: no parameters defined after comma"
 	SYNTAX_ERROR_NO_TYPE_IN_CAST                           = "error [%v, %v]: no type in casted expression"
-	NO_ETX_TOKEN                                           = "program parsed but no ETX was found"
+    ERROR_NO_ETX_TOKEN                                           = "error [%v, %v]: program parsed but no ETX was found"
 	SYNTAX_ERROR_EXPECTED_RIGHT_BRACE                      = "error [%v, %v]: expected right brace"
 	SYNTAX_ERROR_UNKNOWN_STATEMENT                         = "error [%v, %v]: unknown statement"
 	SYNTAX_ERROR_MISSING_COLON_ASSIGN                      = "error [%v, %v]: missing ':' after identifier in variable declaration"

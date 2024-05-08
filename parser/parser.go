@@ -57,7 +57,7 @@ func (p *Parser) ParseProgram() *Program {
 	}
 
 	if p.token.Type != lex.ETX {
-		panic(NewParserError(NO_ETX_TOKEN))
+		panic(NewParserError(fmt.Sprintf(ERROR_NO_ETX_TOKEN, p.token.Position.Line, p.token.Position.Line)))
 	}
 	return NewProgram(functions)
 }
@@ -278,7 +278,7 @@ func (p *Parser) parseFunctionCall(name string, position lex.Position) Statement
 
 	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_CALL_NOT_CLOSED)
 
-	return NewFunctionCall(NewIdentifier(name, position), arguments)
+	return NewFunctionCall(name, position, arguments)
 }
 
 // arguments = expression , { "," , expression } ;

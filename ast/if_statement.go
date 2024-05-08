@@ -3,21 +3,21 @@ package ast
 import "reflect"
 
 type IfStatement struct {
-	Conditions       Expression
+	Condition       Expression
 	Instructions     []Statement
 	ElseInstructions []Statement
 }
 
 func NewIfStatement(conditions Expression, instructions []Statement, elseInstructions []Statement) *IfStatement {
 	return &IfStatement{
-		Conditions:       conditions,
+		Condition:       conditions,
 		Instructions:     instructions,
 		ElseInstructions: elseInstructions,
 	}
 }
 
 func (i *IfStatement) Equals(other *IfStatement) bool {
-	if reflect.DeepEqual(i.Conditions, other.Conditions) {
+	if reflect.DeepEqual(i.Condition, other.Condition) {
 		return false
 	}
 	if len(i.Instructions) != len(other.Instructions) {
@@ -37,4 +37,8 @@ func (i *IfStatement) Equals(other *IfStatement) bool {
 		}
 	}
 	return true
+}
+
+func (i *IfStatement) Accept(v Visitor) {
+    v.VisitIfStatement(i)
 }

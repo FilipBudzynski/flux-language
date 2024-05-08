@@ -30,3 +30,7 @@ func (i Identifier) Equals(other Expression) bool {
 		return false
 	}
 }
+
+func (i Identifier) Accept(v Visitor) {
+	v.VisitIdentifier(&i)
+}

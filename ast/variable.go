@@ -39,6 +39,10 @@ func (v *Variable) Equals(other Variable) bool {
 	return true
 }
 
+func (a *Variable) Accept(v Visitor) {
+    v.VisitVariable(a)
+}
+
 type Assignemnt struct {
 	Value      Expression
 	Identifier Identifier
@@ -59,4 +63,9 @@ func (v *Assignemnt) Equals(other Assignemnt) bool {
 		return false
 	}
 	return false
+}
+
+
+func (a *Assignemnt) Accept(v Visitor) {
+    v.VisitAssignement(a)
 }

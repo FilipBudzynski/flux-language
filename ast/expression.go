@@ -44,6 +44,7 @@ var ValidTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
 
 type Expression interface {
 	Equals(Expression) bool
+    Accept(Visitor)
 }
 
 type OrExpression struct {

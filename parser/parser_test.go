@@ -462,14 +462,14 @@ func TestSwitchStatementWithIdentifier(t *testing.T) {
 	cases := []Statement{
 		NewSwitchCase(
 			NewGreaterThanExpression(NewIdentifier("a", lexer.NewPosition(2, 9)), NewIntExpression(2, lexer.NewPosition(2, 13)), lexer.NewPosition(2, 11)),
-			NewFunctionCall(NewIdentifier("fun1", lexer.NewPosition(2, 20)), nil),
+			NewFunctionCall("fun1", lexer.NewPosition(2, 20), nil),
 		),
 		NewSwitchCase(
 			NewLessOrEqualExpression(NewIdentifier("a", lexer.NewPosition(3, 9)), NewIntExpression(2, lexer.NewPosition(3, 14)), lexer.NewPosition(3, 11)),
-			NewFunctionCall(NewIdentifier("fun2", lexer.NewPosition(2, 21)), nil),
+			NewFunctionCall("fun2", lexer.NewPosition(2, 21), nil),
 		),
 		NewDefaultCase(
-			NewFunctionCall(NewIdentifier("fun3", lexer.NewPosition(3, 20)), nil),
+			NewFunctionCall("fun3", lexer.NewPosition(3, 20), nil),
 		),
 	}
 	expected := NewSwitchStatement(nil, nil, cases)
@@ -531,7 +531,7 @@ func TestParseProgram(t *testing.T) {
 		NewVariable(
 			INT,
 			"b",
-			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), []Expression{}),
+			NewFunctionCall("second", lexer.NewPosition(3, 14), []Expression{}),
 			lexer.NewPosition(3, 9),
 		),
 		NewAssignment(
@@ -617,7 +617,7 @@ func TestProgramsEquals(t *testing.T) {
 		NewVariable(
 			INT,
 			"b",
-			NewFunctionCall(NewIdentifier("second", lexer.NewPosition(3, 14)), nil),
+			NewFunctionCall("second", lexer.NewPosition(3, 14), nil),
 			lexer.NewPosition(3, 9),
 		),
 		NewAssignment(

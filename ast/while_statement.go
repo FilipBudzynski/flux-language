@@ -11,3 +11,7 @@ func NewWhileStatement(condition Expression, instructions []Statement) *WhileSta
 		Instructions: instructions,
 	}
 }
+
+func (w *WhileStatement) Accept(v Visitor) {
+	v.VisitWhileStatement(w)
+}

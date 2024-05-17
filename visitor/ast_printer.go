@@ -27,6 +27,9 @@ func (a *ASTPrinter) VisitIdentifier(e *ast.Identifier) {
 	fmt.Print(e.Name)
 }
 
+func (a *ASTPrinter) VisitAssignement(e *ast.Assignemnt) {
+}
+
 func (a *ASTPrinter) VisitFunctionCall(e *ast.FunctionCall) {
 	for _, arg := range e.Arguments {
 		arg.Accept(a)
@@ -136,18 +139,21 @@ func (a *ASTPrinter) VisitOrExpression(e *ast.OrExpression) {
 	fmt.Printf("\n")
 }
 
+func (a *ASTPrinter) VisitBlock(b *ast.Block) {
+}
+
 func (a *ASTPrinter) VisitIfStatement(e *ast.IfStatement) {
 	fmt.Printf("if ")
 	e.Condition.Accept(a)
 	fmt.Printf(" { \n")
-	for _, inst := range e.Instructions {
+	for _, inst := range e.Instructions.Statements {
 		inst.Accept(a)
 		fmt.Printf("\n")
 	}
 	fmt.Printf(" } \n")
 	fmt.Printf(" else \n")
 	fmt.Printf(" { \n")
-	for _, inst := range e.ElseInstructions {
+	for _, inst := range e.ElseInstructions.Statements {
 		inst.Accept(a)
 		fmt.Printf("\n")
 	}
@@ -164,6 +170,9 @@ func (a *ASTPrinter) VisitSwitchStatement(e *ast.SwitchStatement) {
 }
 
 func (a *ASTPrinter) VisitSwitchCase(e *ast.SwitchCase) {
+}
+
+func (a *ASTPrinter) VisitDefaultSwitchCase(e *ast.DefaultSwitchCase) {
 }
 
 func (a *ASTPrinter) VisitWhileStatement(e *ast.WhileStatement) {

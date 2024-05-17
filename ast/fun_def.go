@@ -1,24 +1,23 @@
 package ast
 
 import (
-	"reflect"
 	lex "tkom/lexer"
 )
 
 type FunDef struct {
-	Type       *TypeAnnotation
-	Parameters []*Variable
 	Name       string
-	Statements []Statement
+	Block      *Block
+	Parameters []*Variable
+	Type       TypeAnnotation
 	Position   lex.Position
 }
 
-func NewFunctionDefinition(name string, parameters []*Variable, funType *TypeAnnotation, statements []Statement, position lex.Position) *FunDef {
+func NewFunctionDefinition(name string, parameters []*Variable, funType TypeAnnotation, block *Block, position lex.Position) *FunDef {
 	return &FunDef{
 		Name:       name,
 		Type:       funType,
 		Parameters: parameters,
-		Statements: statements,
+		Block:      block,
 		Position:   position,
 	}
 }
@@ -38,15 +37,9 @@ func (f *FunDef) Equals(other *FunDef) bool {
 			return false
 		}
 	}
-
-	for i, statement := range f.Statements {
-		if !reflect.DeepEqual(statement, other.Statements[i]) {
-			return false
-		}
-	}
-	return true
+	return f.Block.Equals(other.Block)
 }
 
 func (f *FunDef) Accept(v Visitor) {
-    v.VisitFunDef(f)
+	v.VisitFunDef(f)
 }

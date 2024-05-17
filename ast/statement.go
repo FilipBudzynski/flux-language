@@ -1,5 +1,7 @@
 package ast
 
 type Statement interface{
-    Accept(Visitor)
+    Node
+    //Accept(Visitor)
 }
+

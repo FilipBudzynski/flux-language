@@ -33,6 +33,7 @@ const (
 	FLOAT
 	BOOL
 	STRING
+    VOID
 )
 
 var ValidTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
@@ -43,8 +44,9 @@ var ValidTypeAnnotation = map[lexer.TokenType]TypeAnnotation{
 }
 
 type Expression interface {
+    Node
 	Equals(Expression) bool
-    Accept(Visitor)
+    //Accept(Visitor)
 }
 
 type OrExpression struct {

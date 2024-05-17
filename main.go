@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"strings"
 	"tkom/lexer"
+	"tkom/parser"
 )
 
 const (
@@ -16,7 +18,8 @@ const (
 
 func main() {
 	// scannerTest()
-	lexerTest()
+	// lexerTest()
+	parseProgram()
 }
 
 func scannerTest() {
@@ -56,4 +59,22 @@ func lexerTest() {
 			break
 		}
 	}
+}
+
+func parseProgram() {
+	file, err := os.Open("example.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	source, _ := lexer.NewScanner(file)
+	lex := lexer.NewLexer(source, identifierLimit, stringLimit, intLimit)
+	errorHandler := func(err error) {
+		log.Fatalf("Parse Identifier error: %v", err)
+	}
+	parser := parser.NewParser(lex, errorHandler)
+
+	program := parser.ParseProgram()
+	fmt.Print(program)
 }

@@ -3,23 +3,15 @@ package lexer
 import (
 	"fmt"
 	"reflect"
+	"tkom/shared"
 )
 
 const WRONG_TYPE_ERROR = "wrong value type to token type match, expected: %s, got: %s"
 
-type Position struct {
-	Line   int
-	Column int
-}
-
-func NewPosition(line, column int) Position {
-	return Position{Line: line, Column: column}
-}
-
 type Token struct {
 	Value    any
 	Type     TokenType
-	Position Position
+	Position shared.Position
 }
 
 func convertValue(value any, expectedType reflect.Kind) (any, error) {
@@ -40,7 +32,7 @@ func convertValue(value any, expectedType reflect.Kind) (any, error) {
 	return nil, fmt.Errorf(WRONG_TYPE_ERROR, expectedType, value)
 }
 
-func NewToken(tokenType TokenType, position Position, value any) *Token {
+func NewToken(tokenType TokenType, position shared.Position, value any) *Token {
 	switch tokenType {
 	case CONST_INT:
 		v, err := convertValue(value, reflect.Int)

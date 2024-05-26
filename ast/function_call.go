@@ -2,16 +2,16 @@ package ast
 
 import (
 	"reflect"
-	"tkom/lexer"
+	"tkom/shared"
 )
 
 type FunctionCall struct {
 	Name      string
 	Arguments []Expression
-	Position  lexer.Position
+	Position  shared.Position
 }
 
-func NewFunctionCall(name string, position lexer.Position, arguments []Expression) *FunctionCall {
+func NewFunctionCall(name string, position shared.Position, arguments []Expression) *FunctionCall {
 	return &FunctionCall{
 		Name:      name,
 		Position:  position,

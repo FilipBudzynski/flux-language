@@ -3,7 +3,7 @@ package ast
 import "reflect"
 
 type Case interface {
-    Node
+	Node
 }
 
 type SwitchStatement struct {

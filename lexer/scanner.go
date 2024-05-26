@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"log"
+	"tkom/shared"
 )
 
 const EOF rune = -1
@@ -69,8 +70,8 @@ func (s *Scanner) NextRune() {
 	s.Current = char
 }
 
-func (s *Scanner) Position() Position {
-	return NewPosition(s.LineCount, s.CharCount)
+func (s *Scanner) Position() shared.Position {
+	return shared.NewPosition(s.LineCount, s.CharCount)
 }
 
 func (s *Scanner) Character() rune {

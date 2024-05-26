@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"tkom/shared"
 )
 
 const (
@@ -23,62 +24,62 @@ func TestSingleTokens(t *testing.T) {
 		{
 			name:   "identifierToken",
 			input:  "myInt",
-			expect: NewToken(IDENTIFIER, NewPosition(1, 1), "myInt"),
+			expect: NewToken(IDENTIFIER, shared.NewPosition(1, 1), "myInt"),
 		},
 		{
 			name:   "StringToken",
 			input:  "\"String token test\"",
-			expect: NewToken(CONST_STRING, NewPosition(1, 1), "String token test"),
+			expect: NewToken(CONST_STRING, shared.NewPosition(1, 1), "String token test"),
 		},
 		{
 			name:   "ConstIntToken",
 			input:  "123",
-			expect: NewToken(CONST_INT, NewPosition(1, 1), 123),
+			expect: NewToken(CONST_INT, shared.NewPosition(1, 1), 123),
 		},
 		{
 			name:   "ConstFloatToken",
 			input:  "123.456",
-			expect: NewToken(CONST_FLOAT, NewPosition(1, 1), 123.456),
+			expect: NewToken(CONST_FLOAT, shared.NewPosition(1, 1), 123.456),
 		},
 		{
 			name:   "OperatorToken",
 			input:  ">=",
-			expect: NewToken(GREATER_OR_EQUAL, NewPosition(1, 1), nil),
+			expect: NewToken(GREATER_OR_EQUAL, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "OperatorToken",
 			input:  "=>",
-			expect: NewToken(CASE_ARROW, NewPosition(1, 1), nil),
+			expect: NewToken(CASE_ARROW, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "KeyWordToken",
 			input:  "return",
-			expect: NewToken(RETURN, NewPosition(1, 1), nil),
+			expect: NewToken(RETURN, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "CommentToken",
 			input:  "# This is just a comment",
-			expect: NewToken(COMMENT, NewPosition(1, 1), "# This is just a comment"),
+			expect: NewToken(COMMENT, shared.NewPosition(1, 1), "# This is just a comment"),
 		},
 		{
 			name:   "ConstBoolTokenFalse",
 			input:  "false",
-			expect: NewToken(CONST_FALSE, NewPosition(1, 1), nil),
+			expect: NewToken(CONST_FALSE, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "ConstBoolTokenTrue",
 			input:  "true",
-			expect: NewToken(CONST_TRUE, NewPosition(1, 1), nil),
+			expect: NewToken(CONST_TRUE, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "DivideToken",
 			input:  "/",
-			expect: NewToken(DIVIDE, NewPosition(1, 1), nil),
+			expect: NewToken(DIVIDE, shared.NewPosition(1, 1), nil),
 		},
 		{
 			name:   "Float",
 			input:  "0.24",
-			expect: NewToken(CONST_FLOAT, NewPosition(1, 1), 0.24),
+			expect: NewToken(CONST_FLOAT, shared.NewPosition(1, 1), 0.24),
 		},
 	}
 
@@ -105,33 +106,33 @@ func TestLexerCodeExample(t *testing.T) {
 		{
 			input: "int a = 5\nif a == 6\nwhile a >c",
 			tokens: []*Token{
-				NewToken(INT, NewPosition(1, 1), nil),
-				NewToken(IDENTIFIER, NewPosition(1, 5), "a"),
-				NewToken(ASSIGN, NewPosition(1, 7), nil),
-				NewToken(CONST_INT, NewPosition(1, 9), 5),
-				NewToken(IF, NewPosition(2, 1), nil),
-				NewToken(IDENTIFIER, NewPosition(2, 4), "a"),
-				NewToken(EQUALS, NewPosition(2, 6), nil),
-				NewToken(CONST_INT, NewPosition(2, 9), 6),
-				NewToken(WHILE, NewPosition(3, 1), nil),
-				NewToken(IDENTIFIER, NewPosition(3, 7), "a"),
-				NewToken(GREATER_THAN, NewPosition(3, 9), nil),
-				NewToken(IDENTIFIER, NewPosition(3, 10), "c"),
-				NewToken(ETX, NewPosition(3, 11), nil),
+				NewToken(INT, shared.NewPosition(1, 1), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(1, 5), "a"),
+				NewToken(ASSIGN, shared.NewPosition(1, 7), nil),
+				NewToken(CONST_INT, shared.NewPosition(1, 9), 5),
+				NewToken(IF, shared.NewPosition(2, 1), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(2, 4), "a"),
+				NewToken(EQUALS, shared.NewPosition(2, 6), nil),
+				NewToken(CONST_INT, shared.NewPosition(2, 9), 6),
+				NewToken(WHILE, shared.NewPosition(3, 1), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(3, 7), "a"),
+				NewToken(GREATER_THAN, shared.NewPosition(3, 9), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(3, 10), "c"),
+				NewToken(ETX, shared.NewPosition(3, 11), nil),
 			},
 		},
 		{
 			input: "param1 int, param2 string, param3 bool",
 			tokens: []*Token{
-				NewToken(IDENTIFIER, NewPosition(1, 1), "param1"),
-				NewToken(INT, NewPosition(1, 8), nil),
-				NewToken(COMMA, NewPosition(1, 11), nil),
-				NewToken(IDENTIFIER, NewPosition(1, 13), "param2"),
-				NewToken(STRING, NewPosition(1, 20), nil),
-				NewToken(COMMA, NewPosition(1, 26), nil),
-				NewToken(IDENTIFIER, NewPosition(1, 28), "param3"),
-				NewToken(BOOL, NewPosition(1, 35), nil),
-				NewToken(ETX, NewPosition(1, 39), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(1, 1), "param1"),
+				NewToken(INT, shared.NewPosition(1, 8), nil),
+				NewToken(COMMA, shared.NewPosition(1, 11), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(1, 13), "param2"),
+				NewToken(STRING, shared.NewPosition(1, 20), nil),
+				NewToken(COMMA, shared.NewPosition(1, 26), nil),
+				NewToken(IDENTIFIER, shared.NewPosition(1, 28), "param3"),
+				NewToken(BOOL, shared.NewPosition(1, 35), nil),
+				NewToken(ETX, shared.NewPosition(1, 39), nil),
 			},
 		},
 	}
@@ -168,7 +169,7 @@ func TestLexerCodeExample(t *testing.T) {
 
 func TestStringNotClosed(t *testing.T) {
 	input := `"unclosed string`
-	expectedError := NewLexerError(STRING_NOT_CLOSED, NewPosition(1, 17))
+	expectedError := NewLexerError(STRING_NOT_CLOSED, shared.NewPosition(1, 17))
 
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
@@ -186,7 +187,7 @@ func TestStringNotClosed(t *testing.T) {
 
 func TestIntValueLimitExceeded(t *testing.T) {
 	input := fmt.Sprintf("int a := %d0", math.MaxInt)
-	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, NewPosition(1, 10))
+	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, shared.NewPosition(1, 10))
 
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
@@ -224,7 +225,7 @@ func TestLexerStringTokenEscaping(t *testing.T) {
 
 func TestLexerInvalidStringTokenEscaping(t *testing.T) {
 	input := `"Hello\nWorld\!\"\\"`
-	expectedError := NewLexerError(INVALID_ESCAPING, NewPosition(1, 15))
+	expectedError := NewLexerError(INVALID_ESCAPING, shared.NewPosition(1, 15))
 
 	source, _ := NewScanner(strings.NewReader(input))
 	lexer := NewLexer(source, identifierLimit, stringLimit, intLimit)
@@ -246,7 +247,7 @@ func TestLexerInvalidStringTokenEscaping(t *testing.T) {
 func TestStringValueLimitExceeded(t *testing.T) {
 	stringLimit := 5
 	input := `"WAAAAA"`
-	expectedError := NewLexerError(STRING_CAPACITY_EXCEEDED, NewPosition(1, 7))
+	expectedError := NewLexerError(STRING_CAPACITY_EXCEEDED, shared.NewPosition(1, 7))
 
 	reader := strings.NewReader(input)
 	scanner, _ := NewScanner(reader)
@@ -267,10 +268,10 @@ func TestLexerErrorHandling(t *testing.T) {
 	input := "abc 34 karma"
 	source, _ := NewScanner(strings.NewReader(input))
 
-	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, NewPosition(1, 5))
+	expectedError := NewLexerError(INT_CAPACITY_EXCEEDED, shared.NewPosition(1, 5))
 	expectedTokens := []*Token{
-		NewToken(IDENTIFIER, NewPosition(1, 1), "abc"),
-		NewToken(ETX, NewPosition(1, 6), nil),
+		NewToken(IDENTIFIER, shared.NewPosition(1, 1), "abc"),
+		NewToken(ETX, shared.NewPosition(1, 6), nil),
 	}
 
 	lexer := NewLexer(source, 10, 10, 10)

@@ -1,11 +1,7 @@
 package ast
 
-type Node interface {
-    Accept(Visitor)
-}
-
 type Visitor interface {
-	VisitIntExpression(*IntExpression)
+	VisitIntExpression(*IntExpression) 
 	VisitFloatExpression(*FloatExpression)
 	VisitStringExpression(*StringExpression)
 	VisitBoolExpression(*BoolExpression)
@@ -27,7 +23,7 @@ type Visitor interface {
 	VisitLessOrEqualExpression(*LessOrEqualExpression)
 	VisitAndExpression(*AndExpression)
 	VisitOrExpression(*OrExpression)
-    VisitBlock(*Block)
+	VisitBlock(*Block)
 	VisitIfStatement(*IfStatement)
 	VisitReturnStatement(*ReturnStatement)
 	VisitSwitchStatement(*SwitchStatement)

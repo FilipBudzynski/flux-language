@@ -4,43 +4,44 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"tkom/shared"
 )
 
 func TestScanner(t *testing.T) {
 	testCases := []struct {
 		input         string
 		expectedRunes []rune
-		expectedPos   []Position
+		expectedPos   []shared.Position
 	}{
 		{
 			input:         "abc",
 			expectedRunes: []rune{'a', 'b', 'c', EOF},
-			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}},
+			expectedPos:   []shared.Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}},
 		},
 		{
 			input:         "hello\nworld",
 			expectedRunes: []rune{'h', 'e', 'l', 'l', 'o', '\n', 'w', 'o', 'r', 'l', 'd', EOF},
-			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}},
+			expectedPos:   []shared.Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}},
 		},
 		{
 			input:         "line 1\nline 2\nline 3\n",
 			expectedRunes: []rune{'l', 'i', 'n', 'e', ' ', '1', '\n', 'l', 'i', 'n', 'e', ' ', '2', '\n', 'l', 'i', 'n', 'e', ' ', '3', '\n', EOF},
-			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7}, {4, 1}},
+			expectedPos:   []shared.Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {1, 7}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 5}, {2, 6}, {2, 7}, {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7}, {4, 1}},
 		},
 		{
 			input:         "hello\n\n\n\n\n",
 			expectedRunes: []rune{'h', 'e', 'l', 'l', 'o', '\n', '\n', '\n', '\n', '\n', EOF},
-			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}},
+			expectedPos:   []shared.Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {1, 6}, {2, 1}, {3, 1}, {4, 1}, {5, 1}, {6, 1}},
 		},
 		{
 			input:         "\r\nt\t\r\n",
 			expectedRunes: []rune{'\n', 't', '\t', '\n', EOF},
-			expectedPos:   []Position{{1, 1}, {2, 1}, {2, 2}, {2, 3}, {3, 1}},
+			expectedPos:   []shared.Position{{1, 1}, {2, 1}, {2, 2}, {2, 3}, {3, 1}},
 		},
 		{
 			input:         "\r\tt\t\r\n",
 			expectedRunes: []rune{'\r', '\t', 't', '\t', '\n', EOF},
-			expectedPos:   []Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 1}},
+			expectedPos:   []shared.Position{{1, 1}, {1, 2}, {1, 3}, {1, 4}, {1, 5}, {2, 1}},
 		},
 	}
 
@@ -49,7 +50,7 @@ func TestScanner(t *testing.T) {
 		scanner, _ := NewScanner(reader)
 
 		var runes []rune
-		var positions []Position
+		var positions []shared.Position
 		for {
 			char := scanner.Character()
 			pos := scanner.Position()
@@ -77,7 +78,7 @@ func TestScanner(t *testing.T) {
 func TestScannerMultipleEOF(t *testing.T) {
 	input := ""
 	expectedRunes := []rune{EOF, EOF, EOF, EOF, EOF}
-	expectedPos := []Position{{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}
+	expectedPos := []shared.Position{{1, 1}, {1, 1}, {1, 1}, {1, 1}, {1, 1}}
 
 	scanner, _ := NewScanner(strings.NewReader(input))
 

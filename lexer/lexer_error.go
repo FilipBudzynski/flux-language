@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"fmt"
+	"tkom/shared"
 )
 
 type ErrorCode int
@@ -28,7 +29,7 @@ var errorMessage = map[ErrorCode]string{
 
 type LexerError struct {
 	Code     ErrorCode
-	Position Position
+	Position shared.Position
 }
 
 func (e *LexerError) Error() string {
@@ -39,7 +40,7 @@ func (e *LexerError) Error() string {
 	return fmt.Sprintf(msg, e.Position.Line, e.Position.Column)
 }
 
-func NewLexerError(code ErrorCode, position Position) *LexerError {
+func NewLexerError(code ErrorCode, position shared.Position) *LexerError {
 	return &LexerError{
 		Code:     code,
 		Position: position,

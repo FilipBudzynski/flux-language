@@ -1,18 +1,18 @@
 package ast
 
 import (
-	lex "tkom/lexer"
+	"tkom/shared"
 )
 
 type FunDef struct {
 	Name       string
 	Block      *Block
 	Parameters []*Variable
-	Type       TypeAnnotation
-	Position   lex.Position
+	Type       shared.TypeAnnotation
+	Position   shared.Position
 }
 
-func NewFunctionDefinition(name string, parameters []*Variable, funType TypeAnnotation, block *Block, position lex.Position) *FunDef {
+func NewFunctionDefinition(name string, parameters []*Variable, funType shared.TypeAnnotation, block *Block, position shared.Position) *FunDef {
 	return &FunDef{
 		Name:       name,
 		Type:       funType,

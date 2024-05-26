@@ -1,15 +1,15 @@
 package ast
 
 type ReturnStatement struct {
-    Expression Expression
+	Expression Expression
 }
 
 func NewReturnStatement(expression Expression) *ReturnStatement {
-    return &ReturnStatement{
-        Expression: expression,
-    }
+	return &ReturnStatement{
+		Expression: expression,
+	}
 }
 
 func (r *ReturnStatement) Accept(v Visitor) {
-    v.VisitReturnStatement(r)
+	v.VisitReturnStatement(r)
 }

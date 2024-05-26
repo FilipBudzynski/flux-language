@@ -1,13 +1,13 @@
 package ast
 
-import lex "tkom/lexer"
+import "tkom/shared"
 
 type Identifier struct {
 	Name     string
-	Position lex.Position
+	Position shared.Position
 }
 
-func NewIdentifier(name string, position lex.Position) Identifier {
+func NewIdentifier(name string, position shared.Position) Identifier {
 	return Identifier{
 		Name:     name,
 		Position: position,

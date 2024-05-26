@@ -3,13 +3,14 @@ package lexer
 import (
 	"math"
 	"strings"
+	"tkom/shared"
 	"unicode"
 )
 
 type Lexer struct {
 	scanner         *Scanner
 	ErrorHandler    func(err error)
-	pos             Position
+	pos             shared.Position
 	identifierLimit int
 	stringLimit     int
 	intLimit        int
@@ -80,7 +81,7 @@ func (l *Lexer) skipWhiteChar() {
 	}
 }
 
-func (l *Lexer) createComment(position Position) *Token {
+func (l *Lexer) createComment(position shared.Position) *Token {
 	if l.scanner.Character() != '#' {
 		return nil
 	}
@@ -94,7 +95,7 @@ func (l *Lexer) createComment(position Position) *Token {
 	return NewToken(COMMENT, position, strBuilder.String())
 }
 
-func (l *Lexer) createOperator(position Position) *Token {
+func (l *Lexer) createOperator(position shared.Position) *Token {
 	buff := l.scanner.Character()
 	if buff == '<' || buff == '>' || buff == '=' || buff == '!' || buff == '-' || buff == ':' {
 		char := l.consume()
@@ -117,7 +118,7 @@ func (l *Lexer) isDigit(r rune) bool {
 	return r >= '0' && r <= '9'
 }
 
-func (l *Lexer) createNumber(position Position) *Token {
+func (l *Lexer) createNumber(position shared.Position) *Token {
 	if !l.isDigit(l.scanner.Character()) {
 		return nil
 	}
@@ -157,7 +158,7 @@ func (l *Lexer) createNumber(position Position) *Token {
 	return NewToken(CONST_FLOAT, position, floatValue)
 }
 
-func (l *Lexer) createIdentifier(position Position) *Token {
+func (l *Lexer) createIdentifier(position shared.Position) *Token {
 	if !unicode.IsLetter(l.scanner.Character()) {
 		return nil
 	}
@@ -202,7 +203,7 @@ func (l *Lexer) handleEscaping() rune {
 	}
 }
 
-func (l *Lexer) createString(position Position) *Token {
+func (l *Lexer) createString(position shared.Position) *Token {
 	if l.scanner.Character() != '"' {
 		return nil
 	}

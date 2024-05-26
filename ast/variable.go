@@ -2,7 +2,7 @@ package ast
 
 import (
 	"reflect"
-	"tkom/lexer"
+	"tkom/shared"
 )
 
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
@@ -10,11 +10,11 @@ const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in vari
 type Variable struct {
 	Value    any
 	Name     string
-	Type     TypeAnnotation
-	Position lexer.Position
+	Type     shared.TypeAnnotation
+	Position shared.Position
 }
 
-func NewVariable(variableType TypeAnnotation, name string, value any, position lexer.Position) *Variable {
+func NewVariable(variableType shared.TypeAnnotation, name string, value any, position shared.Position) *Variable {
 	return &Variable{
 		Type:     variableType,
 		Name:     name,
@@ -40,7 +40,7 @@ func (v *Variable) Equals(other Variable) bool {
 }
 
 func (a *Variable) Accept(v Visitor) {
-    v.VisitVariable(a)
+	v.VisitVariable(a)
 }
 
 type Assignemnt struct {
@@ -65,7 +65,6 @@ func (v *Assignemnt) Equals(other Assignemnt) bool {
 	return false
 }
 
-
 func (a *Assignemnt) Accept(v Visitor) {
-    v.VisitAssignement(a)
+	v.VisitAssignement(a)
 }

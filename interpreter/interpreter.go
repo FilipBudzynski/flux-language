@@ -118,6 +118,30 @@ func (v *CodeVisitor) tryCastToBool(value any) (bool, error) {
 	}
 }
 
+func (v *CodeVisitor) checkType(value any, expectedType shared.TypeAnnotation, pos shared.Position) error {
+	switch expectedType {
+	case shared.INT:
+		if _, ok := value.(int); !ok {
+			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, expectedType, reflect.TypeOf(value)), pos)
+		}
+	case shared.FLOAT:
+		if _, ok := value.(float64); !ok {
+			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, expectedType, reflect.TypeOf(value)), pos)
+		}
+	case shared.BOOL:
+		if _, ok := value.(bool); !ok {
+			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, expectedType, reflect.TypeOf(value)), pos)
+		}
+	case shared.STRING:
+		if _, ok := value.(string); !ok {
+			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, expectedType, reflect.TypeOf(value)), pos)
+		}
+	default:
+		return fmt.Errorf("unknown type: %v", expectedType)
+	}
+	return nil
+}
+
 // helper function for visiting CastExpression
 func (v *CodeVisitor) tryCastToString(value any) (string, error) {
 	return fmt.Sprintf("%v", value), nil
@@ -165,6 +189,9 @@ func (v *CodeVisitor) VisitBoolExpression(e *ast.BoolExpression) {
 
 func (v *CodeVisitor) VisitIdentifier(e *ast.Identifier) {
 	sc := v.CurrentScope.InScope(e.Name)
+	if sc == nil {
+		panic(NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, e.Name), e.Position))
+	}
 	v.LastResult = sc.Value
 }
 
@@ -524,7 +551,6 @@ func (v *CodeVisitor) VisitVariable(e *ast.Variable) {
 		panic(err)
 	}
 	v.LastResult = nil
-	// v.CurrentScope.InScope(e.Name)
 }
 
 func (v *CodeVisitor) VisitBlock(e *ast.Block) {
@@ -629,25 +655,24 @@ func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
 		panic(NewSemanticError(fmt.Sprintf(UNDEFINED_FUNCTION, fc.Name), fc.Position))
 	}
 
-	newScope := NewScope(v.CurrentScope, &functionDef.Type)
-
 	if len(fc.Arguments) != len(functionDef.Parameters) {
 		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fc.Name, len(functionDef.Parameters), len(fc.Arguments)), fc.Position))
 	}
 
-	values := []any{}
-	for _, arg := range fc.Arguments {
-		arg.Accept(v)
-		values = append(values, v.LastResult)
-	}
-
+	newScope := NewScope(v.CurrentScope, &functionDef.Type)
 	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
 	for i, param := range functionDef.Parameters {
-		// param.Accept(v)
-		// err := v.CurrentScope.SetVariableValue(param.Name, values[i])
-		err := v.CurrentScope.AddVariable(param.Name, values[i], param.Type, param.Position)
+		fc.Arguments[i].Accept(v)
+		argumentValue := v.LastResult
+
+		err := v.checkType(argumentValue, param.Type, param.Position)
+		if err != nil {
+			panic(err)
+		}
+
+		err = v.CurrentScope.AddVariable(param.Name, argumentValue, param.Type, param.Position)
 		if err != nil {
 			panic(err)
 		}
@@ -671,17 +696,77 @@ func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
 	}
 }
 
+//	sumUp(a,b int) int {
+//	    return a + b
+//	}
+//
+//	whatWillGetMe() string {
+//	    switch a := sumUp(2,4) {
+//	        a>2 and a<=4  => "A pint",
+//	        a==5          => "Decent beverage",
+//	        a>5 and a<15  => "A NICE bevrage",
+//	        a> 15         => "Whole bottle"
+//	    }
+//	}
 func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
-    if s.Expression != nil {
-        s.Expression.Accept(v)
-    }
-	newScope := NewScope(v.CurrentScope, &functionDef.Type)
+	newScope := NewScope(v.CurrentScope, nil)
+	v.ScopeStack.Push(newScope)
+	v.CurrentScope = newScope
+
+	for _, variable := range s.Variables {
+		variable.Accept(v)
+		variableValue := v.LastResult
+
+		// err := v.checkType(variableValue, variable.Type, variable.Position)
+		// if err != nil {
+		// 	panic(err)
+		// }
+
+		err := v.CurrentScope.AddVariable(variable.Name, variableValue, variable.Type, variable.Position)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	for _, c := range s.Cases {
+		c.Accept(v)
+		if v.ReturnFlag {
+			break
+		}
+	}
+
+	if v.ReturnFlag {
+		v.returnToFunctionDefScope()
+	} else {
+		v.LastResult = nil
+	}
 }
 
-func (v *CodeVisitor) VisitSwitchCase(e *ast.SwitchCase) {
+// a>2 and a<=4  => "A pint",
+func (v *CodeVisitor) VisitSwitchCase(sc *ast.SwitchCase) {
+	sc.Condition.Accept(v)
+	condition := v.LastResult
+
+	if condition.(bool) {
+		sc.OutputExpression.Accept(v)
+		output := v.LastResult
+
+		functinReturnType := v.getCurrentFunctionReturnType()
+		err := v.checkType(output, functinReturnType, shared.NewPosition(1, 1))
+		if err != nil {
+			panic(err)
+		}
+		v.ReturnFlag = true
+		return
+	}
+
+	v.LastResult = nil
 }
 
-func (v *CodeVisitor) VisitDefaultSwitchCase(e *ast.DefaultSwitchCase) {
+// default => "A pint",
+func (v *CodeVisitor) VisitDefaultSwitchCase(dsc *ast.DefaultSwitchCase) {
+    dsc.OutputExpression.Accept(v)
+    v.ReturnFlag = true
 }
 
 func (v *CodeVisitor) VisitFunDef(funDef *ast.FunDef) {

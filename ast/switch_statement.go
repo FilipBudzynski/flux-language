@@ -1,29 +1,27 @@
 package ast
 
-import "reflect"
-
 type Case interface {
 	Node
 }
 
 type SwitchStatement struct {
-	Variables  []*Variable
-	Expression Expression
-	Cases      []Case
+	Variables []*Variable
+	// Expression Expression
+	Cases []Case
 }
 
-func NewSwitchStatement(variables []*Variable, expression Expression, cases []Case) *SwitchStatement {
+func NewSwitchStatement(variables []*Variable, cases []Case) *SwitchStatement {
 	return &SwitchStatement{
-		Variables:  variables,
-		Expression: expression,
-		Cases:      cases,
+		Variables: variables,
+		// Expression: expression,
+		Cases: cases,
 	}
 }
 
 func (s *SwitchStatement) Equals(other SwitchStatement) bool {
-	if !reflect.DeepEqual(s.Expression, other.Expression) {
-		return false
-	}
+	// if !reflect.DeepEqual(s.Expression, other.Expression) {
+	// 	return false
+	// }
 	if len(s.Cases) != len(other.Cases) {
 		return false
 	}
@@ -41,7 +39,8 @@ func (s *SwitchStatement) Accept(v Visitor) {
 
 type SwitchCase struct {
 	Condition        Expression
-	OutputExpression Expression // block lub expression
+	OutputExpression Expression
+	// Position         shared.Position
 }
 
 func (s *SwitchCase) Accept(v Visitor) {
@@ -65,7 +64,7 @@ func (s *SwitchCase) Equals(o Case) bool {
 func NewSwitchCase(condition Expression, outputExpression Expression) *SwitchCase {
 	return &SwitchCase{
 		Condition:        condition,
-		OutputExpression: outputExpression, // expression or *Block sturcture
+		OutputExpression: outputExpression,
 	}
 }
 

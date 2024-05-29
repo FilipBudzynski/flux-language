@@ -26,19 +26,23 @@ func NewScope(parent *Scope, returnType *shared.TypeAnnotation) *Scope {
 }
 
 func (s *Scope) InScope(name string) *ScopeVariable {
-	if v, ok := s.variables[name]; ok {
-		return v
-	}
-	if s.Parent != nil {
-		return s.Parent.InScope(name)
+	currentScope := s
+	for currentScope != nil {
+		if v, ok := currentScope.variables[name]; ok {
+			return v
+		}
+		if currentScope.ReturnType != nil {
+			break
+		}
+		currentScope = currentScope.Parent
 	}
 	return nil
 }
 
 func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnnotation, position shared.Position) error {
-	if v := s.InScope(name); v != nil {
+	if v, ok := s.variables[name]; ok {
 		return NewSemanticError(fmt.Sprintf(REDECLARED_VARIABLE, name), v.Position)
-	}
+	} 
 	scopeVariable := &ScopeVariable{
 		Value:    value,
 		Type:     variableType,

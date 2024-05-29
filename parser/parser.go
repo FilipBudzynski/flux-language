@@ -613,19 +613,21 @@ func (p *Parser) parseSwitchVariables() (variables []*Variable) {
 }
 
 // switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) | expression ], "{", switch_case, { ",", switch_case "}" ;
+// switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) ], "{", switch_case, { ",", switch_case "}" ;
+// TODO: przeciez tutaj expression nie ma najmniejszego sensu jezeli nie mamy implicit porównań
 func (p *Parser) parseSwitchStatement() *SwitchStatement {
 	if p.token.Type != lex.SWITCH {
 		return nil
 	}
 	p.consumeToken()
 
-	var expression Expression
+	// var expression Expression
 
 	variables := p.parseSwitchVariables()
-	if variables == nil {
-		expression = p.parseExpression()
-	}
-	// if expression nil it means that the switch case is empty and we allow it
+	// if variables == nil {
+	// 	expression = p.parseExpression()
+	// }
+	// if variables nil it means that the switch case is empty and we allow it to be so
 
 	p.requierAndConsume(lex.LEFT_BRACE, SYNTAX_ERROR_NO_LEFT_CURLY_BRACKET_IN_SWITCH)
 
@@ -648,7 +650,8 @@ func (p *Parser) parseSwitchStatement() *SwitchStatement {
 
 	p.requierAndConsume(lex.RIGHT_BRACE, SYNTAX_ERROR_NOT_CLOSED_SWITCH)
 
-	return NewSwitchStatement(variables, expression, cases)
+	// return NewSwitchStatement(variables, expression, cases)
+	return NewSwitchStatement(variables, cases)
 }
 
 // switch_case = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ), } ;

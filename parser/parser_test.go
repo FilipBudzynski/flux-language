@@ -514,7 +514,8 @@ func TestSwitchStatement(t *testing.T) {
 		NewSwitchCase(NewGreaterOrEqualExpression(idA, NewIntExpression(10, shared.NewPosition(3, 14)), shared.NewPosition(3, 8)),
 			NewStringExpression("Asia", shared.NewPosition(3, 29))),
 	}
-	expected := NewSwitchStatement(variables, nil, cases)
+	// expected := NewSwitchStatement(variables, nil, cases)
+	expected := NewSwitchStatement(variables, cases)
 	parser := createParser(t, input)
 
 	statement := parser.parseSwitchStatement()
@@ -541,7 +542,7 @@ func TestSwitchStatements(t *testing.T) {
 				[]*Variable{
 					NewVariable(shared.INT, "a", NewIntExpression(2, shared.NewPosition(1, 17)), shared.NewPosition(1, 8)),
 				},
-				nil,
+				//nil,
 				[]Case{
 					NewSwitchCase(
 						NewAndExpression(
@@ -568,7 +569,7 @@ func TestSwitchStatements(t *testing.T) {
             }`,
 			expected: NewSwitchStatement(
 				nil,
-				nil,
+				// nil,
 				[]Case{
 					NewSwitchCase(
 						NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 9)), NewIntExpression(2, shared.NewPosition(2, 13)), shared.NewPosition(2, 11)),
@@ -592,7 +593,7 @@ func TestSwitchStatements(t *testing.T) {
             }`,
 			expected: NewSwitchStatement(
 				nil,
-				nil,
+				//nil,
 				[]Case{
 					NewSwitchCase(
 						NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 9)), NewIntExpression(2, shared.NewPosition(2, 13)), shared.NewPosition(2, 11)),

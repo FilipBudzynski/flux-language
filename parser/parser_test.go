@@ -738,7 +738,7 @@ func TestFunctionsEquals(t *testing.T) {
 		nil,
 		shared.VOID,
 		NewBlock([]Statement{
-			NewVariable(shared.INT, "a", 10, shared.NewPosition(1, 5)),
+			NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
 			NewIfStatement(
 				NewGreaterThanExpression(
 					NewIdentifier("a", shared.NewPosition(6, 8)),
@@ -757,7 +757,7 @@ func TestFunctionsEquals(t *testing.T) {
 		nil,
 		shared.VOID,
 		NewBlock([]Statement{
-			NewVariable(shared.INT, "a", 10, shared.NewPosition(1, 5)),
+			NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
 			NewIfStatement(
 				NewGreaterThanExpression(
 					NewIdentifier("a", shared.NewPosition(6, 8)),
@@ -778,7 +778,7 @@ func TestFunctionsEquals(t *testing.T) {
 
 func TestProgramsEquals(t *testing.T) {
 	statements := []Statement{
-		NewVariable(shared.INT, "a", 10, shared.NewPosition(1, 5)),
+		NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
 		NewVariable(
 			shared.INT,
 			"b",

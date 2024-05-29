@@ -19,11 +19,11 @@ func (err *SemantciError) Error() string {
 }
 
 const (
-	UNDEFINED_VARIABLE                       = "Undefined: %s"
-	UNDEFINED_FUNCTION                       = "Undefined function: %s"
-	REDECLARED_VARIABLE                      = "Redeclared variable: %s, variable with that name already exists"
+	UNDEFINED_VARIABLE                       = "undefined: %s"
+	UNDEFINED_FUNCTION                       = "undefined function: %s"
+	REDECLARED_VARIABLE                      = "redeclared variable: %s, variable with that name already exists"
 	TYPE_MISMATCH                            = "cannot assign value of %v, to variable of type: %v"
-	WRONG_NUMBER_OF_ARGUMENTS                = "Function %s expects %d arguments, got %d"
+	WRONG_NUMBER_OF_ARGUMENTS                = "function %s expects %d arguments, got %d"
 	INVALID_NEGATE_EXPRESSION                = "cannot negate %v of type %v"
 	INVALID_MULTIPLY_EXPRESSION              = "cannot evaluate '*' operation with instances of %v and %v"
 	INVALID_DIVISION_EXPRESSION              = "cannot evaluate '/' operation with instances of %v and %v"
@@ -36,6 +36,8 @@ const (
 	INVALID_LESS_THAN_MISSMATCH              = "cannot evaluate '<' operation with instances, mismatched types of %v and %v"
 	INVALID_LESS_OR_EQUALS_THAN_MISSMATCH    = "cannot evaluate '<=' operation with instances, mismatched types of %v and %v"
 	INVALID_ASSIGNMENT_TYPES                 = "cannot assign value of type %v to variable of type %v"
-	INVALID_TYPE_ANNOTATION                  = "Invalid type annotation: %s"
-	INVALID_RETURN_TYPE                      = "Invalid return type: %s, expected %s"
+	INVALID_TYPE_ANNOTATION                  = "invalid type annotation: %s"
+	INVALID_RETURN_TYPE                      = "invalid return type: %s, expected %s"
+	MISSING_RETURN                           = "missing return, function should return type %v"
+	FUNCTION_REDEFINITION                    = "function redefinition, function with name: '%s' already defined here: %v"
 )

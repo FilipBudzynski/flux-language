@@ -75,7 +75,7 @@ func TestVisitIfStatement_ConditionTrue(t *testing.T) {
 	block := &ast.Block{
 		Statements: []ast.Statement{
 			&ast.Variable{
-				Value:    42,
+				Value:    ast.NewIntExpression(42, shared.NewPosition(1, 1)),
 				Name:     "a",
 				Type:     shared.INT,
 				Position: shared.NewPosition(1, 1),
@@ -110,7 +110,7 @@ func TestVisitIfStatement_ElseBlock(t *testing.T) {
 	block := &ast.Block{
 		Statements: []ast.Statement{
 			&ast.Variable{
-				Value:    42,
+				Value:    ast.NewIntExpression(42, shared.NewPosition(1, 1)),
 				Name:     "b",
 				Type:     shared.INT,
 				Position: shared.NewPosition(1, 1),
@@ -120,7 +120,7 @@ func TestVisitIfStatement_ElseBlock(t *testing.T) {
 	elseBlock := &ast.Block{
 		Statements: []ast.Statement{
 			&ast.Variable{
-				Value:    "stół z powyłamywanymi nogami",
+				Value:    ast.NewStringExpression("stół z powyłamywanymi nogami", shared.NewPosition(1, 1)),
 				Name:     "table",
 				Type:     shared.STRING,
 				Position: shared.NewPosition(1, 1),
@@ -150,7 +150,7 @@ func TestScopeVariables(t *testing.T) {
 
 	block := &ast.Block{
 		Statements: []ast.Statement{
-			&ast.Variable{Name: "y", Value: 42, Type: shared.INT},
+			&ast.Variable{Name: "y", Value: ast.NewIntExpression(42, shared.NewPosition(1, 1)), Type: shared.INT},
 			&ast.IntExpression{Value: 42},
 		},
 	}
@@ -213,6 +213,7 @@ func TestVisitBoolExpression(t *testing.T) {
 	}
 }
 
+// testing the visit negate expression for all types
 func TestVisitNegateExpression(t *testing.T) {
 	tests := []struct {
 		expression     ast.Expression
@@ -327,6 +328,7 @@ func TestVisitSubstrackExpression(t *testing.T) {
 	}
 }
 
+// testing cast expression for every type to every type
 func TestCastExpression(t *testing.T) {
 	tests := []struct {
 		initialValue   any
@@ -405,6 +407,310 @@ func TestCastExpression(t *testing.T) {
 				t.Errorf("expected LastResult to be %v, got %v", tt.expectedResult, visitor.LastResult)
 			}
 		})
+	}
+}
+
+func TestVisitIdentifier(t *testing.T) {
+	visitor := NewCodeVisitor(nil)
+	scope := NewScope(nil, nil)
+	err := scope.AddVariable("a", 10, shared.INT, shared.NewPosition(1, 1))
+	visitor.CurrentScope = scope
+	visitor.VisitIdentifier(
+		&ast.Identifier{
+			Name: "a",
+		},
+	)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	if visitor.LastResult != 10 {
+		t.Errorf("expected LastResult to be 0, got %v", visitor.LastResult)
+	}
+}
+
+func TestVisitVariable(t *testing.T) {
+	visitor := NewCodeVisitor(nil)
+	scope := NewScope(nil, nil)
+	visitor.CurrentScope = scope
+	visitor.VisitVariable(
+		&ast.Variable{
+			Name:  "a",
+			Value: ast.NewStringExpression("some string", shared.NewPosition(1, 1)),
+			Type:  shared.STRING,
+		},
+	)
+	expected := "some string"
+	variable := visitor.CurrentScope.InScope("a")
+
+	if variable.Type != shared.STRING {
+		t.Errorf("expected variable type to be %v, got %v", shared.STRING, variable.Type)
+	}
+	if variable.Value != expected {
+		t.Errorf("expected variable value to be %v, got %v", expected, variable.Value)
+	}
+}
+
+func TestVisitVariableAndIdentifier(t *testing.T) {
+	expected := 22
+	visitor := NewCodeVisitor(nil)
+	scope := NewScope(nil, nil)
+	visitor.CurrentScope = scope
+	visitor.VisitVariable(
+		&ast.Variable{
+			Name:  "a",
+			Value: ast.NewIntExpression(22, shared.NewPosition(1, 1)),
+			Type:  shared.INT,
+		},
+	)
+
+	visitor.VisitIdentifier(
+		&ast.Identifier{
+			Name: "a",
+		},
+	)
+
+	if visitor.LastResult != expected {
+		t.Errorf("expected lastResult to be %v, got %v", 10, visitor.LastResult)
+	}
+}
+
+// in this scenario we are testing declaring a variable using function call
+// expecting result is c variable in scope with value 3
+//
+// TESTING CASE:
+//
+//	sum_a_b (a, b int) int {
+//	 return a + b
+//	}
+//
+//	{
+//	   int c := sum_a_b(1, 2)
+//	}
+func TestVisitFunctionCall(t *testing.T) {
+	sumAandBfunction := &ast.FunDef{
+		Name: "sum_a_b",
+		Type: shared.INT,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+			{
+				Name: "b",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					Expression: &ast.SumExpression{
+						LeftExpression: &ast.Identifier{
+							Name: "a",
+						},
+						RightExpression: &ast.Identifier{
+							Name: "b",
+						},
+					},
+				},
+			},
+		},
+	}
+	functionMap := map[string]*ast.FunDef{
+		"sum_a_b": sumAandBfunction,
+	}
+	visitor := NewCodeVisitor(functionMap)
+	scope := NewScope(nil, nil)
+	visitor.CurrentScope = scope
+	visitor.VisitFunctionCall(
+		&ast.FunctionCall{
+			Name: "sum_a_b",
+			Arguments: []ast.Expression{
+				&ast.IntExpression{
+					Value: 1,
+				},
+				&ast.IntExpression{
+					Value: 2,
+				},
+			},
+		},
+	)
+
+	if visitor.LastResult != 3 {
+		t.Errorf("expected lastResult to be %v, got %v", 3, visitor.LastResult)
+	}
+}
+
+func TestVisitAsignmentWithFunctionCall(t *testing.T) {
+	sumAandBfunction := &ast.FunDef{
+		Name: "sum_a_b",
+		Type: shared.INT,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+			{
+				Name: "b",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					Expression: &ast.SumExpression{
+						LeftExpression: &ast.Identifier{
+							Name: "a",
+						},
+						RightExpression: &ast.Identifier{
+							Name: "b",
+						},
+					},
+				},
+			},
+		},
+	}
+	functionMap := map[string]*ast.FunDef{
+		"sum_a_b": sumAandBfunction,
+	}
+	visitor := NewCodeVisitor(functionMap)
+	scope := NewScope(nil, nil)
+	visitor.CurrentScope = scope
+	visitor.VisitVariable(
+		&ast.Variable{
+			Name: "c",
+			Type: shared.INT,
+			Value: &ast.FunctionCall{
+				Name: "sum_a_b",
+				Arguments: []ast.Expression{
+					&ast.IntExpression{
+						Value: 1,
+					},
+					&ast.IntExpression{
+						Value: 2,
+					},
+				},
+			},
+		},
+	)
+
+	if variable := visitor.CurrentScope.InScope("c"); variable == nil {
+		t.Errorf("variable not in scope but should be, got: %v", variable)
+	}
+	if variable := visitor.CurrentScope.InScope("c"); variable.Value != 3 {
+		t.Errorf("expected variable value to be %v, got %v", 3, variable.Value)
+	}
+}
+
+// in this scenario we are testing returning from nested scopes with function calls
+//
+// TESTING CASE:
+//
+//	sum_a_b (a, b int) int {
+//	  if a > 0 {
+//	    return a + b
+//	  }
+//	  return 0
+//	}
+//
+//	{
+//	  int c := 0
+//	  if true {
+//	    c = sum_a_b(1, 2)
+//	  }
+//	  string d := "hello"
+//	}
+func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
+	sumAandBfunction := &ast.FunDef{
+		Name: "sum_a_b",
+		Type: shared.INT,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+			{
+				Name: "b",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.IfStatement{
+					Condition: &ast.GreaterThanExpression{
+						LeftExpression: &ast.Identifier{
+							Name: "a",
+						},
+						RightExpression: &ast.IntExpression{
+							Value: 0,
+						},
+					},
+					InstructionsBlock: &ast.Block{
+						Statements: []ast.Statement{
+							&ast.ReturnStatement{
+								Expression: &ast.SumExpression{
+									LeftExpression: &ast.Identifier{
+										Name: "a",
+									},
+									RightExpression: &ast.Identifier{
+										Name: "b",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	mainBlock := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.Variable{
+				Name:  "c",
+				Type:  shared.INT,
+				Value: &ast.IntExpression{Value: 0},
+			},
+			&ast.IfStatement{
+				Condition: &ast.BoolExpression{Value: true},
+				InstructionsBlock: &ast.Block{
+					Statements: []ast.Statement{
+						&ast.Assignemnt{
+							Identifier: ast.Identifier{Name: "c"},
+							Value: &ast.FunctionCall{
+								Name: "sum_a_b",
+								Arguments: []ast.Expression{
+									&ast.IntExpression{Value: 1},
+									&ast.IntExpression{Value: 2},
+								},
+							},
+						},
+					},
+				},
+			},
+			&ast.Variable{
+				Name:  "d",
+				Type:  shared.STRING,
+				Value: &ast.StringExpression{Value: "hello"},
+			},
+		},
+	}
+	functionMap := map[string]*ast.FunDef{
+		"sum_a_b": sumAandBfunction,
+	}
+	visitor := NewCodeVisitor(functionMap)
+	scopeReturnType := shared.VOID
+	scope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(scope)
+	visitor.CurrentScope = scope
+	visitor.VisitBlock(mainBlock)
+
+	if visitor.LastResult != nil {
+		t.Errorf("expected lastResult to be %v, got %v", nil, visitor.LastResult)
+	}
+	if variable := visitor.CurrentScope.InScope("c"); variable == nil {
+		t.Errorf("variable not in scope but should be, got: %v", variable)
+	}
+	if variable := visitor.CurrentScope.InScope("c"); variable.Value != 3 {
+		t.Errorf("expected variable value to be %v, got %v", 3, variable.Value)
 	}
 }
 

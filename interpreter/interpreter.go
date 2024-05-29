@@ -8,6 +8,7 @@ import (
 	"tkom/shared"
 )
 
+// implementation of stack for scopes
 type Stack struct {
 	elem []*Scope
 }
@@ -40,6 +41,9 @@ func (s *Stack) Size() int {
 	return len(s.elem)
 }
 
+// implementation of interpreter
+// based on the visitor pattern
+// https://en.wikipedia.org/wiki/Visitor_pattern
 type CodeVisitor struct {
 	LastResult        any
 	Functions         map[string]*ast.FunDef
@@ -60,6 +64,7 @@ func NewCodeVisitor(functions map[string]*ast.FunDef) *CodeVisitor {
 	}
 }
 
+// helper function for visiting CastExpression
 func (c *CodeVisitor) tryCastToInt(value any) (int, error) {
 	switch val := value.(type) {
 	case int:
@@ -78,6 +83,7 @@ func (c *CodeVisitor) tryCastToInt(value any) (int, error) {
 	}
 }
 
+// helper function for visiting CastExpression
 func (v *CodeVisitor) tryCastToFloat(value any) (float64, error) {
 	switch val := value.(type) {
 	case int:
@@ -96,6 +102,7 @@ func (v *CodeVisitor) tryCastToFloat(value any) (float64, error) {
 	}
 }
 
+// helper function for visiting CastExpression
 func (v *CodeVisitor) tryCastToBool(value any) (bool, error) {
 	switch val := value.(type) {
 	case int:
@@ -111,25 +118,13 @@ func (v *CodeVisitor) tryCastToBool(value any) (bool, error) {
 	}
 }
 
+// helper function for visiting CastExpression
 func (v *CodeVisitor) tryCastToString(value any) (string, error) {
 	return fmt.Sprintf("%v", value), nil
 }
 
-func (v *CodeVisitor) createVariable(name string, variableType shared.TypeAnnotation) {
-	// variable := &ast.Variable{
-	// 	Name: name,
-	// 	Type: variableType,
-	// }
-	// err := v.CurrentScope.AddVariable(name, variable)
-	// if err != nil {
-	// 	// bo inaczej kazda funkcja visitor'a musi zwracac error - mozliwe ze to dobrze
-	// 	panic(err)
-	// }
-
-	// not to propagate the value further
-	// v.LastResult = nil
-}
-
+// helper function for returning to the function definition scope
+// after visiting a return statement and turning the ReturnFlag on
 func (v *CodeVisitor) returnToFunctionDefScope() {
 	for v.CurrentScope.ReturnType == nil {
 		parentScope, err := v.ScopeStack.Pop()
@@ -138,13 +133,11 @@ func (v *CodeVisitor) returnToFunctionDefScope() {
 		}
 		v.CurrentScope = parentScope
 	}
-	// parentScope, err := v.ScopeStack.Pop()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// v.CurrentScope = parentScope
+
+	// v.ReturnFlag = false
 }
 
+// helper function for getting the return type of the current function
 func (v *CodeVisitor) getCurrentFunctionReturnType() shared.TypeAnnotation {
 	for i := len(v.ScopeStack.elem) - 1; i >= 0; i-- {
 		if v.ScopeStack.elem[i].ReturnType != nil {
@@ -171,7 +164,8 @@ func (v *CodeVisitor) VisitBoolExpression(e *ast.BoolExpression) {
 }
 
 func (v *CodeVisitor) VisitIdentifier(e *ast.Identifier) {
-	v.LastResult = e.Name
+	sc := v.CurrentScope.InScope(e.Name)
+	v.LastResult = sc.Value
 }
 
 func (v *CodeVisitor) VisitNegateExpression(e *ast.NegateExpression) {
@@ -524,10 +518,13 @@ func (v *CodeVisitor) VisitAssignement(e *ast.Assignemnt) {
 }
 
 func (v *CodeVisitor) VisitVariable(e *ast.Variable) {
-	err := v.CurrentScope.AddVariable(e.Name, e.Value, e.Type, e.Position)
+	e.Value.Accept(v)
+	err := v.CurrentScope.AddVariable(e.Name, v.LastResult, e.Type, e.Position)
 	if err != nil {
 		panic(err)
 	}
+	v.LastResult = nil
+	// v.CurrentScope.InScope(e.Name)
 }
 
 func (v *CodeVisitor) VisitBlock(e *ast.Block) {
@@ -537,14 +534,6 @@ func (v *CodeVisitor) VisitBlock(e *ast.Block) {
 			break
 		}
 	}
-	// if v.ReturnFlag {
-	// 	v.returnToFunctionDefScope()
-	// }
-	// parentScope, err := v.ScopeStack.Pop()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// v.CurrentScope = parentScope
 }
 
 func (v *CodeVisitor) VisitIfStatement(e *ast.IfStatement) {
@@ -634,15 +623,6 @@ func (v *CodeVisitor) VisitWhileStatement(e *ast.WhileStatement) {
 	// v.CurrentScope = parentScope
 }
 
-func (v *CodeVisitor) VisitSwitchStatement(e *ast.SwitchStatement) {
-}
-
-func (v *CodeVisitor) VisitSwitchCase(e *ast.SwitchCase) {
-}
-
-func (v *CodeVisitor) VisitDefaultSwitchCase(e *ast.DefaultSwitchCase) {
-}
-
 func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
 	functionDef := v.Functions[fc.Name]
 	if functionDef == nil {
@@ -655,24 +635,61 @@ func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
 		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fc.Name, len(functionDef.Parameters), len(fc.Arguments)), fc.Position))
 	}
 
-	values := []ast.Expression{}
+	values := []any{}
 	for _, arg := range fc.Arguments {
 		arg.Accept(v)
-		values = append(values, v.LastResult.(ast.Expression))
+		values = append(values, v.LastResult)
 	}
 
-	v.ScopeStack.Push(v.CurrentScope)
+	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
 	for i, param := range functionDef.Parameters {
-		param.Accept(v)
-		v.CurrentScope.SetVariableValue(param.Name, values[i])
+		// param.Accept(v)
+		// err := v.CurrentScope.SetVariableValue(param.Name, values[i])
+		err := v.CurrentScope.AddVariable(param.Name, values[i], param.Type, param.Position)
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	functionDef.Accept(v)
+	functionDef.Block.Accept(v)
+
+	if functionDef.Type != shared.VOID && !v.ReturnFlag {
+		panic(fmt.Sprintf(MISSING_RETURN, functionDef.Type))
+	}
+
+	if v.ReturnFlag {
+		// v.returnToFunctionDefScope()
+		parentScope, err := v.ScopeStack.Pop()
+		if err != nil {
+			panic(err)
+		}
+		v.CurrentScope = parentScope
+	} else {
+		v.LastResult = nil
+	}
 }
 
-func (v *CodeVisitor) VisitFunDef(e *ast.FunDef) {
+func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
+    if s.Expression != nil {
+        s.Expression.Accept(v)
+    }
+	newScope := NewScope(v.CurrentScope, &functionDef.Type)
+}
+
+func (v *CodeVisitor) VisitSwitchCase(e *ast.SwitchCase) {
+}
+
+func (v *CodeVisitor) VisitDefaultSwitchCase(e *ast.DefaultSwitchCase) {
+}
+
+func (v *CodeVisitor) VisitFunDef(funDef *ast.FunDef) {
+	// if fd, exist := v.Functions[funDef.Name]; exist {
+	// 	panic(fmt.Sprintf(FUNCTION_REDEFINITION, fd.Name, fd.Position))
+	// }
+	//
+	// v.Functions[funDef.Name] = funDef
 }
 
 func (v *CodeVisitor) VisitProgram(e *ast.Program) {

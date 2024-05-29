@@ -8,13 +8,13 @@ import (
 const ERROR_WRONG_VALUE_IN_DECLARATION = "cannot use \"%s\", as %s value in variable declaration"
 
 type Variable struct {
-	Value    any
+	Value    Expression
 	Name     string
 	Type     shared.TypeAnnotation
 	Position shared.Position
 }
 
-func NewVariable(variableType shared.TypeAnnotation, name string, value any, position shared.Position) *Variable {
+func NewVariable(variableType shared.TypeAnnotation, name string, value Expression, position shared.Position) *Variable {
 	return &Variable{
 		Type:     variableType,
 		Name:     name,

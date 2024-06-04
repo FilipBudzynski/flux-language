@@ -15,15 +15,15 @@ const (
 func (t TypeAnnotation) String() string {
 	switch t {
 	case INT:
-		return "INT"
+		return "int"
 	case FLOAT:
-		return "FLOAT"
+		return "float"
 	case BOOL:
-		return "BOOL"
+		return "bool"
 	case STRING:
-		return "STRING"
+		return "string"
 	case VOID:
-		return "VOID"
+		return "void"
 	default:
 		return fmt.Sprintf("Unknown TypeAnnotation: %d", t)
 	}

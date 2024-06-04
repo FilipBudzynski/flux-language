@@ -36,6 +36,11 @@ func (f *FunctionCall) Equals(other Expression) bool {
 	return true
 }
 
+func (f *FunctionCall) GetPosition() shared.Position {
+    return f.Position
+}
+
 func (f *FunctionCall) Accept(v Visitor) {
 	v.VisitFunctionCall(f)
 }
+

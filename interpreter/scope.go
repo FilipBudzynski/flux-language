@@ -5,6 +5,39 @@ import (
 	"tkom/shared"
 )
 
+// implementation of stack for scopes
+type Stack struct {
+	elem []*Scope
+}
+
+func (s *Stack) Push(value *Scope) {
+	s.elem = append(s.elem, value)
+}
+
+func (s *Stack) Pop() (*Scope, error) {
+	if len(s.elem) == 0 {
+		return nil, fmt.Errorf("stack is empty")
+	}
+	top := s.elem[len(s.elem)-1]
+	s.elem = s.elem[:len(s.elem)-1]
+	return top, nil
+}
+
+func (s *Stack) Top() (*Scope, error) {
+	if len(s.elem) == 0 {
+		return nil, fmt.Errorf("stack is empty")
+	}
+	return s.elem[len(s.elem)-1], nil
+}
+
+func (s *Stack) IsEmpty() bool {
+	return len(s.elem) == 0
+}
+
+func (s *Stack) Size() int {
+	return len(s.elem)
+}
+
 type ScopeVariable struct {
 	Value    any
 	Type     shared.TypeAnnotation
@@ -42,7 +75,7 @@ func (s *Scope) InScope(name string) *ScopeVariable {
 func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnnotation, position shared.Position) error {
 	if v, ok := s.variables[name]; ok {
 		return NewSemanticError(fmt.Sprintf(REDECLARED_VARIABLE, name), v.Position)
-	} 
+	}
 	scopeVariable := &ScopeVariable{
 		Value:    value,
 		Type:     variableType,
@@ -58,7 +91,7 @@ func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnno
 // If no such value is foud returns a UNDEFINED_VARIABLE error
 //
 // If variable type doesn't match with value type, returns a TYPE_MISMATCH error
-func (s *Scope) SetVariableValue(name string, value any) error {
+func (s *Scope) SetValue(name string, value any) error {
 	v := s.InScope(name)
 	if v == nil {
 		return NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, name), shared.NewPosition(999, 999))
@@ -106,7 +139,7 @@ func (s *Scope) GetValue(name string) (any, error) {
 func (s *Scope) GetVariable(name string) (*ScopeVariable, error) {
 	v := s.InScope(name)
 	if v == nil {
-		return nil, NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, name), shared.NewPosition(999, 999))
+		return nil, fmt.Errorf(fmt.Sprintf(UNDEFINED_VARIABLE, name))
 	}
 	return v, nil
 }

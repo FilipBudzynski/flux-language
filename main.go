@@ -1,80 +1,106 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"log"
 	"math"
 	"os"
-	"strings"
+	"strconv"
+	"tkom/ast"
+	"tkom/interpreter"
 	"tkom/lexer"
 	"tkom/parser"
 )
 
 const (
-	identifierLimit = 500
-	stringLimit     = 1000
-	intLimit        = math.MaxInt
+	IDENTIFIERLIMIT     = 500
+	STRING_LIMIT        = 1000
+	INT_LIMIT           = math.MaxInt
+	MAX_RECURSION_DEPTH = 200
 )
 
 func main() {
-	// scannerTest()
-	// lexerTest()
-	parseProgram()
-}
-
-func scannerTest() {
-	file := strings.NewReader("int a = 5\n")
-	scanner, _ := lexer.NewScanner(file)
-	for {
-		scanner.NextRune()
-		if scanner.Character() == lexer.EOF {
-			break
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", r)
+			//os.Exit(1)
 		}
-		position := scanner.Position()
-		fmt.Printf("Line: %d, Char: %d, Value: %c\n", position.Line, position.Column, scanner.Current)
+	}()
+
+	if len(os.Args) < 2 {
+		fmt.Println("Missing parameter, provide file name or use piped input!")
+		return
 	}
+
+	var program *ast.Program
+	var err error
+
+	if len(os.Args) == 2 && os.Args[1] == "-" {
+		program, err = parseProgramFromStdin()
+	} else {
+		fileName := os.Args[1]
+		program, err = parseProgramFromFile(fileName)
+	}
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	visitor := interpreter.NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.MaxRecursionDepth = MAX_RECURSION_DEPTH
+	for _, fd := range program.Functions {
+		visitor.FunctionsMap[fd.Name] = fd
+	}
+
+	arguments := os.Args[2:]
+	functionCallArgs := make([]ast.Expression, len(arguments))
+	for i, arg := range arguments {
+		if intValue, err := strconv.Atoi(arg); err == nil {
+			functionCallArgs[i] = &ast.IntExpression{Value: intValue}
+		} else {
+			functionCallArgs[i] = &ast.StringExpression{Value: arg}
+		}
+	}
+
+	functionCall := &ast.FunctionCall{
+		Name:      "main",
+		Arguments: functionCallArgs,
+	}
+	visitor.VisitFunctionCall(functionCall)
 }
 
-func lexerTest() {
-	file, err := os.Open("example.txt")
+func parseProgramFromFile(fileName string) (*ast.Program, error) {
+	file, err := os.Open(fileName)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	defer file.Close()
 
-	source, _ := lexer.NewScanner(file)
-	lex := lexer.NewLexer(source, identifierLimit, stringLimit, intLimit)
-
-	for {
-		token := lex.GetNextToken()
-
-		if token == nil || token.Type == lexer.ETX {
-			break
-		}
-
-		fmt.Printf("%-2v %-12v %-5v\n", token.Position, token.Type.TypeName(), token.Value)
-
-		if token.GetType() == lexer.ETX {
-			fmt.Println("Koniec pliku")
-			break
-		}
-	}
+	reader := bufio.NewReader(file)
+	return parseProgram(reader)
 }
 
-func parseProgram() {
-	file, err := os.Open("example.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer file.Close()
+func parseProgramFromStdin() (*ast.Program, error) {
+	reader := bufio.NewReader(os.Stdin)
+	return parseProgram(reader)
+}
 
-	source, _ := lexer.NewScanner(file)
-	lex := lexer.NewLexer(source, identifierLimit, stringLimit, intLimit)
+func parseProgram(reader *bufio.Reader) (*ast.Program, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", r)
+			os.Exit(1)
+		}
+	}()
+	source, _ := lexer.NewScanner(reader)
+	lex := lexer.NewLexer(source, IDENTIFIERLIMIT, STRING_LIMIT, INT_LIMIT)
 	errorHandler := func(err error) {
-		log.Fatalf("Parse Identifier error: %v", err)
+		panic(err)
 	}
+    lex.ErrorHandler = errorHandler
 	parser := parser.NewParser(lex, errorHandler)
 
 	program := parser.ParseProgram()
-	fmt.Print(program)
+	return program, nil
 }

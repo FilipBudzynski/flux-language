@@ -62,18 +62,14 @@ func TestParseParameters(t *testing.T) {
 
 	params := parser.parseParameters()
 
-	for _, param := range params {
-		t.Log(param)
-	}
-
 	if len(params) != len(expected) {
 		t.Errorf("Expected %d parameters, got %d", len(expected), len(params))
 		return
 	}
 
 	for i, param := range params {
-		if !param.Equals(*expected[i]) {
-			t.Errorf("Expected parameter name %s, got %s", expected[i].Name, param.Name)
+		if !reflect.DeepEqual(param, expected[i]) {
+			t.Errorf("Expected parameter %v, got %v", expected[i], param)
 		}
 		if param.Type != expected[i].Type {
 			t.Errorf("Expected parameter type %v, got %v", expected[i].Type, param.Type)
@@ -89,17 +85,16 @@ func TestParseIdentifier(t *testing.T) {
 		t.Errorf("Parse Identifier error: %v", err)
 	}
 	parser := NewParser(lex, errorHandler)
-	identifier := parser.parseAssignment()
+	identifier := parser.parseIdentifierOrCall()
 
-	t.Log(identifier)
-	if identifier != expected {
+	if !reflect.DeepEqual(identifier.(*Identifier), expected) {
 		t.Errorf("expected: %v, got: %v ", identifier, expected)
 	}
 }
 
 func TestParseFunctionDefinitions(t *testing.T) {
 	tests := []struct {
-		expected *FunDef
+		expected *FunctionDefinition
 		input    string
 	}{
 		{
@@ -134,7 +129,7 @@ func TestParseFunctionDefinitions(t *testing.T) {
 		parser := createParser(t, tt.input)
 		functionDefinition := parser.parseFunDef()
 
-		if !functionDefinition.Equals(tt.expected) {
+		if !reflect.DeepEqual(functionDefinition, tt.expected) {
 			t.Errorf("function definitions are not equal, expected: %v, got: %v", tt.expected, functionDefinition)
 		}
 	}
@@ -152,8 +147,12 @@ func TestParseExpressionIdentifierOnly(t *testing.T) {
 
 	expression := parser.parseExpression()
 
-	if expr, ok := expression.(Identifier); !ok {
-		t.Errorf("expressions are not equal, expected: %v, got: %v", expected, expr)
+	if expr, ok := expression.(*Identifier); ok {
+		if !expr.Equals(expected) {
+			t.Errorf("expressions are not equal, expected: %v, got: %v", expected, expr)
+		}
+	} else {
+		t.Errorf("expression not of type Identifier but should be: %v, got: %v", expected, expr)
 	}
 }
 
@@ -430,17 +429,17 @@ func TestParseOrAndExpression(t *testing.T) {
 	expected := NewOrExpression(idA, NewAndExpression(idB, idC, shared.NewPosition(1, 8)), shared.NewPosition(1, 3))
 	parser := createParser(t, input)
 
-	statement := parser.parseExpression()
+	expression := parser.parseExpression()
 
-	if statement, ok := statement.(*OrExpression); !ok {
+	if statement, ok := expression.(*OrExpression); !ok {
 		t.Errorf("Parsed statement is not of type OrExpression")
 		t.Errorf("Actual type: %v", reflect.TypeOf(statement))
 		t.Errorf("Expected type: %v", reflect.TypeOf(expected))
 	}
 
-	if st, ok := statement.(*OrExpression); ok {
+	if st, ok := expression.(*OrExpression); ok {
 		if !expected.Equals(st) {
-			t.Errorf("And with Or expressions not parsed correctly, expected: %v, got: %v", expected, statement)
+			t.Errorf("And with Or expressions not parsed correctly, expected: %v, got: %v", expected, expression)
 		}
 	}
 }
@@ -492,7 +491,7 @@ func TestParseWhileStatement(t *testing.T) {
 
 	statement := parser.parseWhileStatement()
 
-	if !statement.Equals(expected) {
+	if !reflect.DeepEqual(statement, expected) {
 		t.Errorf("While statement not parsed correctly, expected: %v, got: %v", expected, statement)
 	}
 }
@@ -503,150 +502,164 @@ func TestSwitchStatement(t *testing.T) {
         a >= 10          => "Asia"
     }`
 
-	idA := NewIdentifier("a", shared.NewPosition(1, 8))
-	variable := NewVariable(shared.INT, "a", NewIntExpression(2, shared.NewPosition(1, 17)), shared.NewPosition(1, 8))
+	variable := NewVariable(shared.INT, "a", NewIntExpression(2, shared.NewPosition(1, 17)), shared.NewPosition(1, 12))
 	variables := []*Variable{variable}
 	cases := []Case{
-		NewSwitchCase(NewAndExpression(
-			NewGreaterThanExpression(idA, NewIntExpression(2, shared.NewPosition(2, 12)), shared.NewPosition(2, 8)),
-			NewLessThanExpression(idA, NewIntExpression(10, shared.NewPosition(2, 22)), shared.NewPosition(2, 15)), shared.NewPosition(2, 11)),
-			NewStringExpression("Kasia", shared.NewPosition(2, 29))),
-		NewSwitchCase(NewGreaterOrEqualExpression(idA, NewIntExpression(10, shared.NewPosition(3, 14)), shared.NewPosition(3, 8)),
-			NewStringExpression("Asia", shared.NewPosition(3, 29))),
+		&SwitchCase{
+			Condition: NewAndExpression(
+				NewGreaterThanExpression(
+					NewIdentifier("a", shared.NewPosition(2, 9)),
+					NewIntExpression(2, shared.NewPosition(2, 13)),
+					shared.NewPosition(2, 11)),
+				NewLessThanExpression(
+					NewIdentifier("a", shared.NewPosition(2, 19)),
+					NewIntExpression(10, shared.NewPosition(2, 23)),
+					shared.NewPosition(2, 21)),
+				shared.NewPosition(2, 15)),
+			OutputExpression: NewStringExpression("Kasia", shared.NewPosition(2, 29)),
+			Position:         shared.Position{Line: 2, Column: 26},
+		},
+		&SwitchCase{
+			Condition: NewGreaterOrEqualExpression(
+				NewIdentifier("a", shared.NewPosition(3, 9)),
+				NewIntExpression(10, shared.NewPosition(3, 14)),
+				shared.NewPosition(3, 11),
+			),
+			OutputExpression: NewStringExpression("Asia", shared.NewPosition(3, 29)),
+			Position:         shared.Position{Line: 3, Column: 26},
+		},
 	}
-	// expected := NewSwitchStatement(variables, nil, cases)
-	expected := NewSwitchStatement(variables, cases)
+
+	expected := &SwitchStatement{Variables: variables, Cases: cases, Position: shared.Position{Line: 1, Column: 1}}
 	parser := createParser(t, input)
 
 	statement := parser.parseSwitchStatement()
 
-	if !expected.Equals(*statement) {
+	if !reflect.DeepEqual(statement, expected) {
 		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
 	}
 }
 
-func TestSwitchStatements(t *testing.T) {
-	tests := []struct {
-		expected      *SwitchStatement
-		expectedError *ParserError
-		name          string
-		input         string
-	}{
-		{
-			name: "SwitchStatement",
-			input: `switch int a := 2 {
-                a > 2 and a < 10 => "Kasia",
-                a >= 10          => "Asia"
-            }`,
-			expected: NewSwitchStatement(
-				[]*Variable{
-					NewVariable(shared.INT, "a", NewIntExpression(2, shared.NewPosition(1, 17)), shared.NewPosition(1, 8)),
-				},
-				//nil,
-				[]Case{
-					NewSwitchCase(
-						NewAndExpression(
-							NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(1, 8)), NewIntExpression(2, shared.NewPosition(2, 12)), shared.NewPosition(2, 8)),
-							NewLessThanExpression(NewIdentifier("a", shared.NewPosition(1, 8)), NewIntExpression(10, shared.NewPosition(2, 22)), shared.NewPosition(2, 15)),
-							shared.NewPosition(2, 11),
-						),
-						NewStringExpression("Kasia", shared.NewPosition(2, 29)),
-					),
-					NewSwitchCase(
-						NewGreaterOrEqualExpression(NewIdentifier("a", shared.NewPosition(1, 8)), NewIntExpression(10, shared.NewPosition(3, 14)), shared.NewPosition(3, 8)),
-						NewStringExpression("Asia", shared.NewPosition(3, 29)),
-					),
-				},
-			),
-			expectedError: nil,
+func TestSwitchStatementWithDefault(t *testing.T) {
+	input := `switch {
+		a > 2   => fun1(),
+		a <= 10 => fun2(),
+		default => fun3()
+	}`
+
+	expected := &SwitchStatement{
+		Variables: nil,
+		Cases: []Case{
+			&SwitchCase{
+				Condition:        NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 3)), NewIntExpression(2, shared.NewPosition(2, 7)), shared.NewPosition(2, 5)),
+				OutputExpression: NewFunctionCall("fun1", shared.NewPosition(2, 14), []Expression{}),
+				Position:         shared.Position{Line: 2, Column: 11},
+			},
+			&SwitchCase{
+				Condition:        NewLessOrEqualExpression(NewIdentifier("a", shared.NewPosition(3, 3)), NewIntExpression(10, shared.NewPosition(3, 8)), shared.NewPosition(3, 5)),
+				OutputExpression: NewFunctionCall("fun2", shared.NewPosition(3, 14), []Expression{}),
+				Position:         shared.Position{Line: 3, Column: 11},
+			},
+			&DefaultSwitchCase{
+				OutputExpression: NewFunctionCall("fun3", shared.NewPosition(4, 14), []Expression{}),
+				Position:         shared.Position{Line: 4, Column: 11},
+			},
 		},
-		{
-			name: "SwitchStatementWithDefault",
-			input: `switch {
-                a > 2   => fun1(),
-                a <= 10 => fun2(),
-                default => fun3()
-            }`,
-			expected: NewSwitchStatement(
-				nil,
-				// nil,
-				[]Case{
-					NewSwitchCase(
-						NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 9)), NewIntExpression(2, shared.NewPosition(2, 13)), shared.NewPosition(2, 11)),
-						NewFunctionCall("fun1", shared.NewPosition(2, 20), nil),
-					),
-					NewSwitchCase(
-						NewLessOrEqualExpression(NewIdentifier("a", shared.NewPosition(3, 9)), NewIntExpression(2, shared.NewPosition(3, 14)), shared.NewPosition(3, 11)),
-						NewFunctionCall("fun2", shared.NewPosition(2, 21), nil),
-					),
-					NewDefaultCase(
-						NewFunctionCall("fun3", shared.NewPosition(3, 20), nil),
-					),
-				},
-			),
-			expectedError: nil,
-		},
-		{
-			name: "SwitchStatementWithBlock",
-			input: `switch {
-                a > 2   => { return 20 },
-            }`,
-			expected: NewSwitchStatement(
-				nil,
-				//nil,
-				[]Case{
-					NewSwitchCase(
-						NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 9)), NewIntExpression(2, shared.NewPosition(2, 13)), shared.NewPosition(2, 11)),
-						NewBlock([]Statement{NewReturnStatement(NewIntExpression(20, shared.NewPosition(2, 29)))}),
-					),
-				},
-			),
-			expectedError: nil,
-		},
-		{
-			name: "ParseSwitchError",
-			input: `switch {
-                >30 => 2
-                }`,
-			expected: nil,
-			expectedError: &ParserError{
-				Message: "error [2, 5]: missing or bad switch case condition",
+		Position: shared.Position{Line: 1, Column: 1},
+	}
+
+	parser := createParser(t, input)
+	errors := []error{}
+	errorHandler := func(err error) { errors = append(errors, err) }
+	parser.ErrorHandler = errorHandler
+
+	var statement *SwitchStatement
+
+	defer func() {
+		if r := recover(); r != nil {
+			parser.ErrorHandler(r.(error))
+		}
+	}()
+
+	statement = parser.parseSwitchStatement()
+
+	if len(errors) > 0 {
+		t.Errorf("unexpected error: %v", errors[0])
+	}
+	if !reflect.DeepEqual(statement, expected) {
+		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestSwitchStatementWithBlock(t *testing.T) {
+	input := `switch {
+		a > 2   => { return 20 },
+	}`
+
+	expected := &SwitchStatement{
+		Variables: nil,
+		Cases: []Case{
+			&SwitchCase{
+				Condition:        NewGreaterThanExpression(NewIdentifier("a", shared.NewPosition(2, 9)), NewIntExpression(2, shared.NewPosition(2, 13)), shared.NewPosition(2, 11)),
+				OutputExpression: NewBlock([]Statement{NewReturnStatement(NewIntExpression(20, shared.NewPosition(2, 29)))}),
+				Position:         shared.Position{Line: 1, Column: 1},
 			},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			parser := createParser(t, tt.input)
-			errors := []error{}
-			errorHandler := func(err error) { errors = append(errors, err) }
-			parser.ErrorHandler = errorHandler
+	parser := createParser(t, input)
+	errors := []error{}
+	errorHandler := func(err error) { errors = append(errors, err) }
+	parser.ErrorHandler = errorHandler
 
-			var statement *SwitchStatement
+	var statement *SwitchStatement
 
-			defer func() {
-				if r := recover(); r != nil {
-					parser.ErrorHandler(r.(error))
-				}
-			}()
+	defer func() {
+		if r := recover(); r != nil {
+			parser.ErrorHandler(r.(error))
+		}
+	}()
 
-			statement = parser.parseSwitchStatement()
+	statement = parser.parseSwitchStatement()
 
-			if tt.expectedError != nil {
-				if len(errors) == 0 {
-					t.Errorf("expected error but got none")
-				} else if errors[0].Error() != tt.expectedError.Error() {
-					t.Errorf("expected error %v, but got %v", tt.expectedError.Error(), errors[0].Error())
-				}
-			} else {
-				if len(errors) > 0 {
-					t.Errorf("unexpected error: %v", errors[0])
-				}
-				if !tt.expected.Equals(*statement) {
-					t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", tt.expected, statement)
-				}
-			}
-		})
+	if len(errors) > 0 {
+		t.Errorf("unexpected error: %v", errors[0])
+	}
+	if !reflect.DeepEqual(statement, expected) {
+		t.Errorf("Switch statement not parsed correctly, expected: %v, got: %v", expected, statement)
+	}
+}
+
+func TestParseSwitchError(t *testing.T) {
+	input := `switch {
+		>30 => 2
+	}`
+
+	expectedError := &ParserError{
+		Message: "error [2, 5]: missing or bad switch case condition",
+	}
+
+	parser := createParser(t, input)
+	errors := []error{}
+	errorHandler := func(err error) { errors = append(errors, err) }
+	parser.ErrorHandler = errorHandler
+
+	defer func() {
+		if r := recover(); r != nil {
+			parser.ErrorHandler(r.(error))
+		}
+	}()
+
+	statement := parser.parseSwitchStatement()
+
+	if len(errors) == 0 {
+		t.Errorf("expected error but got none")
+	} else if errors[0].Error() != expectedError.Error() {
+		t.Errorf("expected error %v, but got %v", expectedError.Error(), errors[0].Error())
+	}
+
+	if statement != nil {
+		t.Errorf("expected nil statement but got %v", statement)
 	}
 }
 
@@ -686,12 +699,16 @@ func TestParseProgram(t *testing.T) {
 				NewIdentifier("b", shared.NewPosition(6, 12)),
 				shared.NewPosition(6, 10),
 			),
-			NewBlock([]Statement{NewAssignment(NewIdentifier("a", shared.NewPosition(7, 9)), NewIntExpression(0, shared.NewPosition(7, 13)))}),
-			NewBlock([]Statement{NewAssignment(NewIdentifier("b", shared.NewPosition(10, 9)), NewIntExpression(0, shared.NewPosition(10, 13)))}),
+			NewBlock([]Statement{
+				NewAssignment(NewIdentifier("a", shared.NewPosition(7, 9)), NewIntExpression(0, shared.NewPosition(7, 13))),
+			}),
+			NewBlock([]Statement{
+				NewAssignment(NewIdentifier("b", shared.NewPosition(10, 9)), NewIntExpression(0, shared.NewPosition(10, 13))),
+			}),
 		),
 	}
 
-	funDefs := map[string]*FunDef{
+	funDefs := map[string]*FunctionDefinition{
 		"main": NewFunctionDefinition("main", nil, shared.VOID, NewBlock(statements), shared.NewPosition(1, 1)),
 	}
 
@@ -699,8 +716,7 @@ func TestParseProgram(t *testing.T) {
 	parser := createParser(t, input)
 	program := parser.ParseProgram()
 
-	// if reflect.DeepEqual(expected, program) {
-	if !program.Equals(expected) {
+	if !reflect.DeepEqual(expected, program) {
 		t.Errorf("Program not parsed correctly, expected: %v, got: %v", expected, program)
 	}
 }
@@ -708,6 +724,7 @@ func TestParseProgram(t *testing.T) {
 func TestParseProgramInt(t *testing.T) {
 	input := `main() int {
     int a := 10
+    int b := second()
 }`
 
 	statements := []Statement{
@@ -720,7 +737,7 @@ func TestParseProgramInt(t *testing.T) {
 		),
 	}
 
-	funDefs := map[string]*FunDef{
+	funDefs := map[string]*FunctionDefinition{
 		"main": NewFunctionDefinition("main", nil, shared.INT, NewBlock(statements), shared.NewPosition(1, 1)),
 	}
 
@@ -728,7 +745,7 @@ func TestParseProgramInt(t *testing.T) {
 	parser := createParser(t, input)
 	program := parser.ParseProgram()
 
-	if !program.Equals(expected) {
+	if !reflect.DeepEqual(program, expected) {
 		t.Errorf("Program not parsed correctly, expected: %v, got: %v", expected, program)
 	}
 }
@@ -772,7 +789,7 @@ func TestFunctionsEquals(t *testing.T) {
 		shared.NewPosition(1, 1),
 	)
 
-	if !funA.Equals(funB) {
+	if !reflect.DeepEqual(funA, funB) {
 		t.Errorf("Functions are not equal, expected: %v, got: %v", funA, funB)
 	}
 }
@@ -805,22 +822,22 @@ func TestProgramsEquals(t *testing.T) {
 		),
 	}
 
-	funDefsA := map[string]*FunDef{
+	funDefsA := map[string]*FunctionDefinition{
 		"main": NewFunctionDefinition("main", nil, shared.VOID, NewBlock(statements), shared.NewPosition(1, 1)),
 	}
 
-	funDefsB := map[string]*FunDef{
+	funDefsB := map[string]*FunctionDefinition{
 		"main": NewFunctionDefinition("main", nil, shared.VOID, NewBlock(statements), shared.NewPosition(1, 1)),
 	}
 
-	if !funDefsA["main"].Equals(funDefsB["main"]) {
+	if !reflect.DeepEqual(funDefsA["main"], funDefsB["main"]) {
 		t.Errorf("Programs are not equal, expected: %v, got: %v", funDefsA, funDefsB)
 	}
 
 	programA := NewProgram(funDefsA)
 	programB := NewProgram(funDefsB)
 
-	if !programA.Equals(programB) {
+	if !reflect.DeepEqual(programA, programB) {
 		t.Errorf("Programs are not equal, expected: %v, got: %v", programA, programB)
 	}
 }

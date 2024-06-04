@@ -8,59 +8,33 @@ import (
 	"tkom/shared"
 )
 
-// implementation of stack for scopes
-type Stack struct {
-	elem []*Scope
-}
-
-func (s *Stack) Push(value *Scope) {
-	s.elem = append(s.elem, value)
-}
-
-func (s *Stack) Pop() (*Scope, error) {
-	if len(s.elem) == 0 {
-		return nil, fmt.Errorf("stack is empty")
-	}
-	top := s.elem[len(s.elem)-1]
-	s.elem = s.elem[:len(s.elem)-1]
-	return top, nil
-}
-
-func (s *Stack) Peek() (*Scope, error) {
-	if len(s.elem) == 0 {
-		return nil, fmt.Errorf("stack is empty")
-	}
-	return s.elem[len(s.elem)-1], nil
-}
-
-func (s *Stack) IsEmpty() bool {
-	return len(s.elem) == 0
-}
-
-func (s *Stack) Size() int {
-	return len(s.elem)
-}
-
 // implementation of interpreter
 // based on the visitor pattern
+//
 // https://en.wikipedia.org/wiki/Visitor_pattern
 type CodeVisitor struct {
 	LastResult        any
-	Functions         map[string]*ast.FunDef
+	FunctionsMap      map[string]ast.Function
 	CurrentScope      *Scope
+	CallStack         CallStack
 	ScopeStack        Stack
 	ReturnFlag        bool
+	SwitchEndFlag     bool
 	CurrentReturnType shared.TypeAnnotation
+	MaxRecursionDepth int
 }
 
-func NewCodeVisitor(functions map[string]*ast.FunDef) *CodeVisitor {
+func NewCodeVisitor(maxRecursionDepth int) *CodeVisitor {
 	return &CodeVisitor{
-		Functions:         functions,
+		FunctionsMap:      embeddedFunctions,
 		ScopeStack:        Stack{elem: []*Scope{}},
+		CallStack:         CallStack{elem: map[string]int{}},
 		LastResult:        nil,
 		CurrentScope:      nil,
 		ReturnFlag:        false,
+		SwitchEndFlag:     false,
 		CurrentReturnType: shared.VOID,
+		MaxRecursionDepth: maxRecursionDepth,
 	}
 }
 
@@ -118,6 +92,11 @@ func (v *CodeVisitor) tryCastToBool(value any) (bool, error) {
 	}
 }
 
+// helper function for visiting CastExpression
+func (v *CodeVisitor) tryCastToString(value any) (string, error) {
+	return fmt.Sprintf("%v", value), nil
+}
+
 func (v *CodeVisitor) checkType(value any, expectedType shared.TypeAnnotation, pos shared.Position) error {
 	switch expectedType {
 	case shared.INT:
@@ -142,25 +121,6 @@ func (v *CodeVisitor) checkType(value any, expectedType shared.TypeAnnotation, p
 	return nil
 }
 
-// helper function for visiting CastExpression
-func (v *CodeVisitor) tryCastToString(value any) (string, error) {
-	return fmt.Sprintf("%v", value), nil
-}
-
-// helper function for returning to the function definition scope
-// after visiting a return statement and turning the ReturnFlag on
-func (v *CodeVisitor) returnToFunctionDefScope() {
-	for v.CurrentScope.ReturnType == nil {
-		parentScope, err := v.ScopeStack.Pop()
-		if err != nil {
-			panic(err)
-		}
-		v.CurrentScope = parentScope
-	}
-
-	// v.ReturnFlag = false
-}
-
 // helper function for getting the return type of the current function
 func (v *CodeVisitor) getCurrentFunctionReturnType() shared.TypeAnnotation {
 	for i := len(v.ScopeStack.elem) - 1; i >= 0; i-- {
@@ -171,32 +131,32 @@ func (v *CodeVisitor) getCurrentFunctionReturnType() shared.TypeAnnotation {
 	return shared.VOID
 }
 
-func (v *CodeVisitor) VisitIntExpression(e *ast.IntExpression) {
-	v.LastResult = e.Value
+func (v *CodeVisitor) VisitIntExpression(intExp *ast.IntExpression) {
+	v.LastResult = intExp.Value
 }
 
-func (v *CodeVisitor) VisitFloatExpression(e *ast.FloatExpression) {
-	v.LastResult = e.Value
+func (v *CodeVisitor) VisitFloatExpression(floatExp *ast.FloatExpression) {
+	v.LastResult = floatExp.Value
 }
 
-func (v *CodeVisitor) VisitStringExpression(e *ast.StringExpression) {
-	v.LastResult = e.Value
+func (v *CodeVisitor) VisitStringExpression(strExp *ast.StringExpression) {
+	v.LastResult = strExp.Value
 }
 
-func (v *CodeVisitor) VisitBoolExpression(e *ast.BoolExpression) {
-	v.LastResult = e.Value
+func (v *CodeVisitor) VisitBoolExpression(boolExp *ast.BoolExpression) {
+	v.LastResult = boolExp.Value
 }
 
-func (v *CodeVisitor) VisitIdentifier(e *ast.Identifier) {
-	sc := v.CurrentScope.InScope(e.Name)
-	if sc == nil {
-		panic(NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, e.Name), e.Position))
+func (v *CodeVisitor) VisitIdentifier(idExp *ast.Identifier) {
+	sc, err := v.CurrentScope.GetVariable(idExp.Name)
+	if err != nil {
+		panic(NewSemanticError(err.Error(), idExp.Position))
 	}
 	v.LastResult = sc.Value
 }
 
-func (v *CodeVisitor) VisitNegateExpression(e *ast.NegateExpression) {
-	e.Expression.Accept(v)
+func (v *CodeVisitor) VisitNegateExpression(negateExp *ast.NegateExpression) {
+	negateExp.Expression.Accept(v)
 	ne := v.LastResult
 
 	switch value := ne.(type) {
@@ -207,72 +167,77 @@ func (v *CodeVisitor) VisitNegateExpression(e *ast.NegateExpression) {
 	case bool:
 		v.LastResult = !value
 	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_NEGATE_EXPRESSION, ne, "string"), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_NEGATE_EXPRESSION, ne, "string"), negateExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitCastExpression(e *ast.CastExpression) {
-	e.LeftExpression.Accept(v)
-	ce := v.LastResult
+func (v *CodeVisitor) VisitCastExpression(castExp *ast.CastExpression) {
+	castExp.LeftExpression.Accept(v)
+	leftExpValue := v.LastResult
 
 	var result any
 	var err error
 
-	switch e.TypeAnnotation {
+	switch castExp.TypeAnnotation {
 	case shared.INT:
-		result, err = v.tryCastToInt(ce)
+		result, err = v.tryCastToInt(leftExpValue)
 	case shared.FLOAT:
-		result, err = v.tryCastToFloat(ce)
+		result, err = v.tryCastToFloat(leftExpValue)
 	case shared.BOOL:
-		result, err = v.tryCastToBool(ce)
+		result, err = v.tryCastToBool(leftExpValue)
 	case shared.STRING:
-		result, err = v.tryCastToString(ce)
+		result, err = v.tryCastToString(leftExpValue)
 	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_TYPE_ANNOTATION, e.TypeAnnotation), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_TYPE_ANNOTATION, castExp.TypeAnnotation), castExp.Position))
 	}
 
 	if err != nil {
-		panic(NewSemanticError(err.Error(), e.Position))
+		panic(NewSemanticError(err.Error(), castExp.Position))
 	}
 
 	v.LastResult = result
 }
 
-func (v *CodeVisitor) VisitMultiplyExpression(e *ast.MultiplyExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitMultiplyExpression(mulExp *ast.MultiplyExpression) {
+	mulExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
-	e.RightExpression.Accept(v)
+	mulExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
-	switch leftResult.(type) {
+	switch leftVal := leftResult.(type) {
 	case int:
-		switch rightResult.(type) {
+		switch rigthVal := rightResult.(type) {
 		case int:
-			v.LastResult = leftResult.(int) * rightResult.(int)
+			v.LastResult = leftVal * rigthVal
+
+		case float64:
+			v.LastResult = float64(leftVal) * rigthVal
 		}
 	case float64:
-		switch rightResult.(type) {
+		switch rightVal := rightResult.(type) {
 		case float64:
-			v.LastResult = leftResult.(float64) * rightResult.(float64)
+			v.LastResult = leftVal * rightVal
+		case int:
+			v.LastResult = leftVal * float64(rightVal)
 		}
 	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_MULTIPLY_EXPRESSION, leftResult, rightResult), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_MULTIPLY_EXPRESSION, leftResult, rightResult), mulExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitDivideExpression(e *ast.DivideExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitDivideExpression(divExp *ast.DivideExpression) {
+	divExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
-	e.RightExpression.Accept(v)
+	divExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	// check for zero as
 	if right, ok := rightResult.(int); ok && right == 0 {
-		panic(NewSemanticError("Division by zero", e.Position))
+		panic(NewSemanticError("Division by zero", divExp.Position))
 	} else if right, ok := rightResult.(float64); ok && right == 0.0 {
-		panic(NewSemanticError("Division by zero", e.Position))
+		panic(NewSemanticError("Division by zero", divExp.Position))
 	}
 
 	switch leftResult.(type) {
@@ -284,209 +249,261 @@ func (v *CodeVisitor) VisitDivideExpression(e *ast.DivideExpression) {
 	case float64:
 		switch rightResult.(type) {
 		case float64:
-			v.LastResult = leftResult.(float64) * rightResult.(float64)
+			v.LastResult = leftResult.(float64) / rightResult.(float64)
+		case int:
+			v.LastResult = leftResult.(float64) / float64(rightResult.(int))
 		}
 	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_DIVISION_EXPRESSION, leftResult, rightResult), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_DIVISION_EXPRESSION, leftResult, rightResult), divExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitSumExpression(e *ast.SumExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitSumExpression(sumExp *ast.SumExpression) {
+	sumExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
-	e.RightExpression.Accept(v)
+	sumExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
-	switch leftResult.(type) {
+	var result any
+	var err error
+
+	switch left := leftResult.(type) {
 	case int:
-		switch rightResult.(type) {
-		case int:
-			v.LastResult = leftResult.(int) + rightResult.(int)
-		case float64:
-			switch rightResult.(type) {
-			case float64:
-				v.LastResult = leftResult.(float64) + rightResult.(float64)
-			}
-		case string:
-			switch rightResult.(type) {
-			case string:
-				v.LastResult = leftResult.(string) + rightResult.(string)
-			}
-		default:
-			panic(NewSemanticError(fmt.Sprintf(INVALID_SUM_EXPRESSION, leftResult, rightResult), e.Position))
-		}
+		result, err = sumInt(left, rightResult)
+	case float64:
+		result, err = sumFloat64(left, rightResult)
+	case string:
+		result, err = sumString(left, rightResult)
+	default:
+		err = fmt.Errorf("invalid left operand type: %T", leftResult)
+	}
+
+	if err != nil {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_SUM_EXPRESSION, leftResult, rightResult), sumExp.Position))
+	}
+
+	v.LastResult = result
+}
+
+// helper function for the sum expression function
+func sumInt(left int, right any) (any, error) {
+	switch right := right.(type) {
+	case int:
+		return left + right, nil
+	case float64:
+		return float64(left) + right, nil
+	case string:
+		return fmt.Sprintf("%d%s", left, right), nil
+	default:
+		return nil, fmt.Errorf("invalid right operand type: %T", right)
 	}
 }
 
-func (v *CodeVisitor) VisitSubstractExpression(e *ast.SubstractExpression) {
-	e.LeftExpression.Accept(v)
+// helper function for the sum expression function
+func sumFloat64(left float64, right any) (any, error) {
+	switch right := right.(type) {
+	case int:
+		return left + float64(right), nil
+	case float64:
+		return left + right, nil
+	case string:
+		return fmt.Sprintf("%f%s", left, right), nil
+	default:
+		return nil, fmt.Errorf("invalid right operand type: %T", right)
+	}
+}
+
+// helper function for the sum expression function
+func sumString(left string, right any) (any, error) {
+	switch right := right.(type) {
+	case int:
+		return left + fmt.Sprintf("%d", right), nil
+	case float64:
+		return left + fmt.Sprintf("%f", right), nil
+	case string:
+		return left + right, nil
+	default:
+		return nil, fmt.Errorf("invalid right operand type: %T", right)
+	}
+}
+
+func (v *CodeVisitor) VisitSubstractExpression(subExp *ast.SubstractExpression) {
+	subExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
-	e.RightExpression.Accept(v)
+	subExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
-	switch leftResult.(type) {
+	switch leftVal := leftResult.(type) {
 	case int:
-		switch rightResult.(type) {
+		switch rightVal := rightResult.(type) {
 		case int:
-			v.LastResult = leftResult.(int) - rightResult.(int)
+			v.LastResult = leftVal - rightVal
 		}
 	case float64:
-		switch rightResult.(type) {
+		switch rightVal := rightResult.(type) {
 		case float64:
-			v.LastResult = leftResult.(float64) - rightResult.(float64)
+			v.LastResult = leftVal - rightVal
+		case int:
+			v.LastResult = leftVal - float64(rightVal)
 		}
 	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_SUBSTRACT_EXPRESSION, leftResult, rightResult), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_SUBSTRACT_EXPRESSION, leftResult, rightResult), subExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitEqualsExpression(e *ast.EqualsExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitEqualsExpression(eqExp *ast.EqualsExpression) {
+	eqExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	eqExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_EQUALS_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_EQUALS_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), eqExp.Position))
 	}
 
 	v.LastResult = leftResult == rightResult
 }
 
-func (v *CodeVisitor) VisitNotEqualsExpression(e *ast.NotEqualsExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitNotEqualsExpression(neExp *ast.NotEqualsExpression) {
+	neExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	neExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_NOT_EQUALS_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_NOT_EQUALS_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), neExp.Position))
 	}
 
 	v.LastResult = leftResult != rightResult
 }
 
-func (v *CodeVisitor) VisitGreaterThanExpression(e *ast.GreaterThanExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitGreaterThanExpression(gtExp *ast.GreaterThanExpression) {
+	gtExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	gtExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), gtExp.Position))
 	}
 
 	switch left := leftResult.(type) {
 	case int:
 		right, ok := rightResult.(int)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), gtExp.Position))
 		}
 		v.LastResult = left > right
 	case float64:
 		right, ok := rightResult.(float64)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), gtExp.Position))
 		}
 		v.LastResult = left > right
 	default:
-		panic(NewSemanticError(fmt.Sprintf("Unsupported types for > operator: %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), gtExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitGreaterOrEqualExpression(e *ast.GreaterOrEqualExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitGreaterOrEqualExpression(geExp *ast.GreaterOrEqualExpression) {
+	geExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	geExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), geExp.Position))
 	}
 
 	switch left := leftResult.(type) {
 	case int:
 		right, ok := rightResult.(int)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), geExp.Position))
 		}
 		v.LastResult = left >= right
 	case float64:
 		right, ok := rightResult.(float64)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), geExp.Position))
 		}
 		v.LastResult = left >= right
 	default:
-		panic(NewSemanticError(fmt.Sprintf("Unsupported types for > operator: %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), geExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitLessThanExpression(e *ast.LessThanExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitLessThanExpression(ltExp *ast.LessThanExpression) {
+	ltExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	ltExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_LESS_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), ltExp.Position))
 	}
 
 	switch left := leftResult.(type) {
 	case int:
 		right, ok := rightResult.(int)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_LESS_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), ltExp.Position))
 		}
 		v.LastResult = left < right
 	case float64:
 		right, ok := rightResult.(float64)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_LESS_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), ltExp.Position))
 		}
 		v.LastResult = left < right
 	default:
-		panic(NewSemanticError(fmt.Sprintf("Unsupported types for > operator: %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_LESS_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), ltExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitLessOrEqualExpression(e *ast.LessOrEqualExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitLessOrEqualExpression(leExp *ast.LessOrEqualExpression) {
+	leExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
-	e.RightExpression.Accept(v)
+
+	leExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	if reflect.TypeOf(leftResult) != reflect.TypeOf(rightResult) {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), leExp.Position))
 	}
 
 	switch left := leftResult.(type) {
 	case int:
 		right, ok := rightResult.(int)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), leExp.Position))
 		}
 		v.LastResult = left <= right
 	case float64:
 		right, ok := rightResult.(float64)
 		if !ok {
-			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), e.Position))
+			panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), leExp.Position))
 		}
 		v.LastResult = left <= right
 	default:
-		panic(NewSemanticError(fmt.Sprintf("Unsupported types for > operator: %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(INVALID_GREATER_OR_EQUALS_THAN_MISSMATCH, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), leExp.Position))
 	}
 }
 
-func (v *CodeVisitor) VisitOrExpression(e *ast.OrExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitOrExpression(orExp *ast.OrExpression) {
+	orExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
 	leftBool, ok := leftResult.(bool)
 	if !ok {
-		panic(NewSemanticError(fmt.Sprintf("Expected boolean expression but got %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(leftResult)), orExp.Position))
 	}
 
 	// If the left expression is true, return true
@@ -495,25 +512,25 @@ func (v *CodeVisitor) VisitOrExpression(e *ast.OrExpression) {
 		return
 	}
 
-	e.RightExpression.Accept(v)
+	orExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	// Check if the right result is a boolean
 	rightBool, ok := rightResult.(bool)
 	if !ok {
-		panic(NewSemanticError(fmt.Sprintf("Expected boolean expression but got %v", reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(rightResult)), orExp.Position))
 	}
 
 	v.LastResult = rightBool
 }
 
-func (v *CodeVisitor) VisitAndExpression(e *ast.AndExpression) {
-	e.LeftExpression.Accept(v)
+func (v *CodeVisitor) VisitAndExpression(andExp *ast.AndExpression) {
+	andExp.LeftExpression.Accept(v)
 	leftResult := v.LastResult
 
 	leftBool, ok := leftResult.(bool)
 	if !ok {
-		panic(NewSemanticError(fmt.Sprintf("Expected boolean expression but got %v", reflect.TypeOf(leftResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(leftResult)), andExp.Position))
 	}
 
 	// If the left expression is false, return false
@@ -522,39 +539,48 @@ func (v *CodeVisitor) VisitAndExpression(e *ast.AndExpression) {
 		return
 	}
 
-	e.RightExpression.Accept(v)
+	andExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
 	rightBool, ok := rightResult.(bool)
 	if !ok {
-		panic(NewSemanticError(fmt.Sprintf("Expected boolean expression but got %v", reflect.TypeOf(rightResult)), e.Position))
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(rightResult)), andExp.Position))
 	}
 
 	v.LastResult = rightBool
 }
 
-func (v *CodeVisitor) VisitAssignement(e *ast.Assignemnt) {
-	e.Value.Accept(v)
+func (v *CodeVisitor) VisitAssignement(assignment *ast.Assignment) {
+	assignment.Value.Accept(v)
 	value := v.LastResult
-	err := v.CurrentScope.SetVariableValue(e.Identifier.Name, value)
+
+	err := v.CurrentScope.SetValue(assignment.Identifier.Name, value)
 	if err != nil {
 		panic(err)
 	}
-	// not to propagate the value further
+
 	v.LastResult = nil
 }
 
-func (v *CodeVisitor) VisitVariable(e *ast.Variable) {
-	e.Value.Accept(v)
-	err := v.CurrentScope.AddVariable(e.Name, v.LastResult, e.Type, e.Position)
+func (v *CodeVisitor) VisitVariable(varDecl *ast.Variable) {
+	varDecl.Value.Accept(v)
+	value := v.LastResult
+
+	err := v.checkType(value, varDecl.Type, varDecl.Position)
 	if err != nil {
 		panic(err)
 	}
+
+	err = v.CurrentScope.AddVariable(varDecl.Name, v.LastResult, varDecl.Type, varDecl.Position)
+	if err != nil {
+		panic(err)
+	}
+
 	v.LastResult = nil
 }
 
-func (v *CodeVisitor) VisitBlock(e *ast.Block) {
-	for _, statement := range e.Statements {
+func (v *CodeVisitor) VisitBlock(block *ast.Block) {
+	for _, statement := range block.Statements {
 		statement.Accept(v)
 		if v.ReturnFlag {
 			break
@@ -562,36 +588,52 @@ func (v *CodeVisitor) VisitBlock(e *ast.Block) {
 	}
 }
 
-func (v *CodeVisitor) VisitIfStatement(e *ast.IfStatement) {
+func (v *CodeVisitor) VisitIfStatement(ifStmt *ast.IfStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
 	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
-	e.Condition.Accept(v)
+	ifStmt.Condition.Accept(v)
 	conditionResult, ok := v.LastResult.(bool)
 	if !ok {
-		panic(fmt.Sprintf("Expected boolean expression but got %v", reflect.TypeOf(v.LastResult)))
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(v.LastResult)), ifStmt.Condition.GetPosition()))
 	}
 
 	if conditionResult {
-		e.InstructionsBlock.Accept(v)
-	} else if e.ElseInstructionsBlock != nil {
-		e.ElseInstructionsBlock.Accept(v)
+		ifStmt.InstructionsBlock.Accept(v)
+	} else if ifStmt.ElseInstructionsBlock != nil {
+		ifStmt.ElseInstructionsBlock.Accept(v)
 	}
 
-	if v.ReturnFlag {
-		v.returnToFunctionDefScope()
-	} else {
+	currentScope, err := v.ScopeStack.Pop()
+	if err != nil {
+		panic(err)
+	}
+	v.CurrentScope = currentScope.Parent
+
+	if !v.ReturnFlag {
 		v.LastResult = nil
-		currentScopre, err := v.ScopeStack.Pop()
-		if err != nil {
-			panic(err)
-		}
-		v.CurrentScope = currentScopre
 	}
 }
 
-func (v *CodeVisitor) determineType(value interface{}) shared.TypeAnnotation {
+func (v *CodeVisitor) VisitReturnStatement(returnStmt *ast.ReturnStatement) {
+	if returnStmt.Value != nil {
+		returnStmt.Value.Accept(v)
+	} else {
+		v.LastResult = nil
+	}
+
+	expectedReturnType := v.getCurrentFunctionReturnType()
+	actualReturnType := v.determineType(v.LastResult)
+
+	if expectedReturnType != actualReturnType {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_RETURN_TYPE, actualReturnType, expectedReturnType), returnStmt.Value.GetPosition()))
+	}
+	v.ReturnFlag = true
+}
+
+// helper function for determining the type of a value for return
+func (v *CodeVisitor) determineType(value any) shared.TypeAnnotation {
 	switch value.(type) {
 	case int:
 		return shared.INT
@@ -606,108 +648,117 @@ func (v *CodeVisitor) determineType(value interface{}) shared.TypeAnnotation {
 	}
 }
 
-func (v *CodeVisitor) VisitReturnStatement(e *ast.ReturnStatement) {
-	// TODO: is this enough?
-	if e.Expression != nil {
-		e.Expression.Accept(v)
-	} else {
-		v.LastResult = nil
-	}
-
-	expectedReturnType := v.getCurrentFunctionReturnType()
-	// expectedReturnType := shared.INT
-	actualReturnType := v.determineType(v.LastResult)
-
-	if expectedReturnType != actualReturnType {
-		panic(fmt.Sprintf(INVALID_RETURN_TYPE, actualReturnType, expectedReturnType))
-	}
-	v.ReturnFlag = true
-}
-
-func (v *CodeVisitor) VisitWhileStatement(e *ast.WhileStatement) {
+func (v *CodeVisitor) VisitWhileStatement(whileStmt *ast.WhileStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
 	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
-	e.Condition.Accept(v)
+	whileStmt.Condition.Accept(v)
+
+	if ok := v.LastResult.(bool); !ok {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_WHILE_CONDITION, reflect.TypeOf(v.LastResult)), shared.NewPosition(0, 0)))
+	}
+
 	for v.LastResult.(bool) {
-		e.InstructionsBlock.Accept(v)
+		whileStmt.InstructionsBlock.Accept(v)
 		if v.ReturnFlag {
 			break
 		}
+		whileStmt.Condition.Accept(v)
 	}
 
-	if v.ReturnFlag {
-		v.returnToFunctionDefScope()
-	} else {
+	currentScope, err := v.ScopeStack.Pop()
+	if err != nil {
+		panic(err)
+	}
+	v.CurrentScope = currentScope.Parent
+
+	if !v.ReturnFlag {
+		// clear the last result if no return flag
 		v.LastResult = nil
 	}
-	// parentScope, err := v.ScopeStack.Pop()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// v.CurrentScope = parentScope
 }
 
 func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
-	functionDef := v.Functions[fc.Name]
+	functionDef := v.FunctionsMap[fc.Name]
 	if functionDef == nil {
 		panic(NewSemanticError(fmt.Sprintf(UNDEFINED_FUNCTION, fc.Name), fc.Position))
 	}
 
-	if len(fc.Arguments) != len(functionDef.Parameters) {
-		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fc.Name, len(functionDef.Parameters), len(fc.Arguments)), fc.Position))
+	if v.CallStack.RecursionDepth(fc.Name) >= v.MaxRecursionDepth {
+		panic(NewSemanticError(fmt.Sprintf(MAX_RECURSION_DEPTH_EXCEEDED, fc.Name), fc.Position))
 	}
 
-	newScope := NewScope(v.CurrentScope, &functionDef.Type)
+	v.CallStack.Push(fc.Name)
+	defer v.CallStack.Pop(fc.Name)
+
+	values := []any{}
+	for _, arg := range fc.Arguments {
+		arg.Accept(v)
+		values = append(values, v.LastResult)
+	}
+	v.LastResult = values
+
+	functionDef.Accept(v)
+}
+
+func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
+	if _, ok := v.LastResult.([]any); !ok {
+		panic(NewSemanticError(fmt.Sprintf(ERROR_ARGUMENTS_NOT_FOUND, reflect.TypeOf(v.LastResult)), fd.Position))
+	}
+	if len(v.LastResult.([]any)) != len(fd.Parameters) {
+		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fd.Name, len(fd.Parameters), len(v.LastResult.([]any))), fd.Position))
+	}
+	args := v.LastResult.([]any)
+
+	newScope := NewScope(v.CurrentScope, &fd.Type)
 	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
-	for i, param := range functionDef.Parameters {
-		fc.Arguments[i].Accept(v)
-		argumentValue := v.LastResult
+	for i, param := range fd.Parameters {
 
+		argumentValue := args[i]
 		err := v.checkType(argumentValue, param.Type, param.Position)
 		if err != nil {
 			panic(err)
 		}
-
 		err = v.CurrentScope.AddVariable(param.Name, argumentValue, param.Type, param.Position)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	functionDef.Block.Accept(v)
+	fd.Block.Accept(v)
 
-	if functionDef.Type != shared.VOID && !v.ReturnFlag {
-		panic(fmt.Sprintf(MISSING_RETURN, functionDef.Type))
+	if fd.Type != shared.VOID && !v.ReturnFlag {
+		panic(NewSemanticError(fmt.Sprintf(MISSING_RETURN, fd.Type), fd.Position))
 	}
 
+	currScope, err := v.ScopeStack.Pop()
+	if err != nil {
+		panic(err)
+	}
+	v.CurrentScope = currScope.Parent
+
 	if v.ReturnFlag {
-		// v.returnToFunctionDefScope()
-		parentScope, err := v.ScopeStack.Pop()
-		if err != nil {
-			panic(err)
-		}
-		v.CurrentScope = parentScope
+		v.ReturnFlag = false
 	} else {
 		v.LastResult = nil
 	}
 }
 
-//	sumUp(a,b int) int {
-//	    return a + b
-//	}
-//
-//	whatWillGetMe() string {
-//	    switch a := sumUp(2,4) {
-//	        a>2 and a<=4  => "A pint",
-//	        a==5          => "Decent beverage",
-//	        a>5 and a<15  => "A NICE bevrage",
-//	        a> 15         => "Whole bottle"
-//	    }
-//	}
+func (v *CodeVisitor) VisitEmbeddedFunction(ef *ast.EmbeddedFunction) {
+	if args, ok := v.LastResult.([]any); ok {
+		if !ef.Variadic && len(args) != len(ef.Parameters) {
+			panic(fmt.Errorf(WRONG_NUMBER_OF_ARGUMENTS, ef.Name, len(ef.Parameters), len(args)))
+		}
+		result := ef.Func(args...)
+		v.LastResult = result
+	} else {
+		panic(fmt.Errorf(INVALID_ARGUMENTS_TYPE, reflect.TypeOf(v.LastResult)))
+	}
+}
+
 func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
 	v.ScopeStack.Push(newScope)
@@ -715,78 +766,78 @@ func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
 
 	for _, variable := range s.Variables {
 		variable.Accept(v)
-		variableValue := v.LastResult
-
-		// err := v.checkType(variableValue, variable.Type, variable.Position)
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		err := v.CurrentScope.AddVariable(variable.Name, variableValue, variable.Type, variable.Position)
-		if err != nil {
-			panic(err)
-		}
 	}
 
+	var defaultCase *ast.DefaultSwitchCase
+
 	for _, c := range s.Cases {
-		c.Accept(v)
+		switch caseStmt := c.(type) {
+		case *ast.SwitchCase:
+			caseStmt.Accept(v)
+			if v.ReturnFlag || v.SwitchEndFlag {
+				break
+			}
+		case *ast.DefaultSwitchCase:
+			if defaultCase != nil {
+				panic(NewSemanticError(MULTIPLE_DEFAULT_CASES, defaultCase.GetPosition()))
+			}
+			defaultCase = caseStmt
+		default:
+			panic(NewSemanticError(INVALID_CASE_TYPE, caseStmt.GetPosition()))
+		}
 		if v.ReturnFlag {
 			break
 		}
 	}
 
-	if v.ReturnFlag {
-		v.returnToFunctionDefScope()
-	} else {
+	// run default only after cases did not get executed
+	if !v.ReturnFlag && defaultCase != nil && !v.SwitchEndFlag {
+		defaultCase.Accept(v)
+	}
+
+	currentScope, err := v.ScopeStack.Pop()
+	if err != nil {
+		panic(err)
+	}
+	v.CurrentScope = currentScope.Parent
+
+	// clear the switch flag
+	v.SwitchEndFlag = false
+
+	// clear the lastResult if flag wasnt set
+	if !v.ReturnFlag {
 		v.LastResult = nil
 	}
 }
 
-// a>2 and a<=4  => "A pint",
 func (v *CodeVisitor) VisitSwitchCase(sc *ast.SwitchCase) {
 	sc.Condition.Accept(v)
 	condition := v.LastResult
 
 	if condition.(bool) {
 		sc.OutputExpression.Accept(v)
-		output := v.LastResult
 
-		functinReturnType := v.getCurrentFunctionReturnType()
-		err := v.checkType(output, functinReturnType, shared.NewPosition(1, 1))
-		if err != nil {
-			panic(err)
+		if v.LastResult != nil {
+			v.ReturnFlag = true
+			return
+		} else {
+			v.SwitchEndFlag = true
+			return
 		}
-		v.ReturnFlag = true
-		return
 	}
 
 	v.LastResult = nil
 }
 
-// default => "A pint",
 func (v *CodeVisitor) VisitDefaultSwitchCase(dsc *ast.DefaultSwitchCase) {
-    dsc.OutputExpression.Accept(v)
-    v.ReturnFlag = true
+	dsc.OutputExpression.Accept(v)
+	if v.LastResult != nil {
+		v.ReturnFlag = true
+		return
+	} else {
+		v.SwitchEndFlag = true
+		return
+	}
 }
 
-func (v *CodeVisitor) VisitFunDef(funDef *ast.FunDef) {
-	// if fd, exist := v.Functions[funDef.Name]; exist {
-	// 	panic(fmt.Sprintf(FUNCTION_REDEFINITION, fd.Name, fd.Position))
-	// }
-	//
-	// v.Functions[funDef.Name] = funDef
-}
-
-func (v *CodeVisitor) VisitProgram(e *ast.Program) {
-}
-
-// VisitFunctionCall(*FunctionCall)
-// VisitBlock(*Block)
-// VisitIfStatement(*IfStatement)
-// VisitReturnStatement(*ReturnStatement)
-// VisitSwitchStatement(*SwitchStatement)
-// VisitSwitchCase(*SwitchCase)
-// VisitDefaultSwitchCase(*DefaultSwitchCase)
-// VisitWhileStatement(*WhileStatement)
-// VisitFunDef(*FunDef)
-// VisitProgram(*Program)
+func (v *CodeVisitor) VisitProgram(e *ast.Program) {}

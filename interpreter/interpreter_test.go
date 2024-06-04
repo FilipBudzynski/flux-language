@@ -1,14 +1,20 @@
 package interpreter
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
+	"reflect"
 	"testing"
 	"tkom/ast"
 	"tkom/shared"
 )
 
+var MAX_RECURSION_DEPTH = 5
+
 func TestVisitIntExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitIntExpression(&ast.IntExpression{Value: 42})
 	if visitor.LastResult != 42 {
 		t.Errorf("expected LastResult to be 42, got %v", visitor.LastResult)
@@ -16,7 +22,7 @@ func TestVisitIntExpression(t *testing.T) {
 }
 
 func TestVisitFloatExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitFloatExpression(&ast.FloatExpression{Value: 42.0})
 	if visitor.LastResult != 42.0 {
 		t.Errorf("expected LastResult to be 42.0, got %v", visitor.LastResult)
@@ -24,7 +30,7 @@ func TestVisitFloatExpression(t *testing.T) {
 }
 
 func TestVisitStringExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitStringExpression(&ast.StringExpression{Value: "42"})
 	if visitor.LastResult != "42" {
 		t.Errorf("expected LastResult to be 42, got %v", visitor.LastResult)
@@ -32,7 +38,7 @@ func TestVisitStringExpression(t *testing.T) {
 }
 
 func TestVisitBoolExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitBoolExpression(&ast.BoolExpression{Value: true})
 	if visitor.LastResult != true {
 		t.Errorf("expected LastResult to be true, got %v", visitor.LastResult)
@@ -75,7 +81,7 @@ func TestVisitNegateExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			visitor := NewCodeVisitor(nil)
+			visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tt.expectingPanic {
@@ -96,7 +102,7 @@ func TestVisitNegateExpression(t *testing.T) {
 }
 
 func TestVisitAndExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitAndExpression(&ast.AndExpression{
 		LeftExpression: &ast.EqualsExpression{
 			LeftExpression:  &ast.IntExpression{Value: 42},
@@ -113,7 +119,7 @@ func TestVisitAndExpression(t *testing.T) {
 }
 
 func TestVisitOrExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitOrExpression(&ast.OrExpression{
 		LeftExpression: &ast.EqualsExpression{
 			LeftExpression:  &ast.IntExpression{Value: 50},
@@ -127,7 +133,7 @@ func TestVisitOrExpression(t *testing.T) {
 }
 
 func TestVisitSumExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitSumExpression(
 		&ast.SumExpression{
 			LeftExpression: &ast.IntExpression{Value: 42},
@@ -141,8 +147,21 @@ func TestVisitSumExpression(t *testing.T) {
 	}
 }
 
-func TestVisitSubstrackExpression(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+func TestVisitSumExpressionString(t *testing.T) {
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.VisitSumExpression(
+		&ast.SumExpression{
+			LeftExpression:  &ast.StringExpression{Value: "even "},
+			RightExpression: &ast.StringExpression{Value: "2"},
+		},
+	)
+	if visitor.LastResult != "even 2" {
+		t.Errorf("expected LastResult to be 'even 2', got %v", visitor.LastResult)
+	}
+}
+
+func TestVisitSubstrackExpressionInt(t *testing.T) {
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.VisitSubstractExpression(
 		&ast.SubstractExpression{
 			LeftExpression:  &ast.IntExpression{Value: 42},
@@ -152,6 +171,50 @@ func TestVisitSubstrackExpression(t *testing.T) {
 	if visitor.LastResult != 0 {
 		t.Errorf("expected LastResult to be 0, got %v", visitor.LastResult)
 	}
+}
+
+func TestVisitSubstrackExpressionFloat(t *testing.T) {
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.VisitSubstractExpression(
+		&ast.SubstractExpression{
+			LeftExpression:  &ast.FloatExpression{Value: 3.14},
+			RightExpression: &ast.FloatExpression{Value: 3.14},
+		},
+	)
+	if visitor.LastResult != 0.0 {
+		t.Errorf("expected LastResult to be 0.0, got %v", visitor.LastResult)
+	}
+}
+
+func TestVisitSubstrackExpressionFloatMinusInt(t *testing.T) {
+	expectedOutput := 0.0
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.VisitSubstractExpression(
+		&ast.SubstractExpression{
+			LeftExpression:  &ast.FloatExpression{Value: 3.0},
+			RightExpression: &ast.IntExpression{Value: 3},
+		},
+	)
+	if visitor.LastResult != expectedOutput {
+		t.Errorf("expected LastResult to be %v, got %v", expectedOutput, visitor.LastResult)
+	}
+}
+
+func TestVisitSubstrackExpressionIntMinusFloat(t *testing.T) {
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("expected panic, but didn't get one")
+		}
+	}()
+
+	visitor.VisitSubstractExpression(
+		&ast.SubstractExpression{
+			LeftExpression:  &ast.IntExpression{Value: 3},
+			RightExpression: &ast.FloatExpression{Value: 3.0},
+		},
+	)
 }
 
 // testing cast expression for every type to every type
@@ -201,7 +264,7 @@ func TestCastExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			visitor := NewCodeVisitor(nil)
+			visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 			defer func() {
 				if r := recover(); r != nil {
 					if !tt.expectingPanic {
@@ -237,7 +300,7 @@ func TestCastExpression(t *testing.T) {
 }
 
 func TestVisitIdentifier(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	scope := NewScope(nil, nil)
 	err := scope.AddVariable("a", 10, shared.INT, shared.NewPosition(1, 1))
 	visitor.CurrentScope = scope
@@ -255,7 +318,7 @@ func TestVisitIdentifier(t *testing.T) {
 }
 
 func TestVisitVariable(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	scope := NewScope(nil, nil)
 	visitor.CurrentScope = scope
 	visitor.VisitVariable(
@@ -278,7 +341,7 @@ func TestVisitVariable(t *testing.T) {
 
 func TestGettingValueFromIdentifier(t *testing.T) {
 	expected := 22
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	scope := NewScope(nil, nil)
 	visitor.CurrentScope = scope
 	visitor.VisitVariable(
@@ -301,15 +364,15 @@ func TestGettingValueFromIdentifier(t *testing.T) {
 }
 
 func TestVariableNotInScope(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	scope := NewScope(nil, nil)
 	visitor.CurrentScope = scope
-	expectedError := "undefined: a"
+	expectedError := NewSemanticError("undefined: a", shared.NewPosition(0, 0))
 
 	defer func() {
 		if r := recover(); r != nil {
 			err, ok := r.(error)
-			if !ok || err.Error() != expectedError {
+			if !ok || err.Error() != expectedError.Error() {
 				t.Errorf("Expected panic with error: %v, but got: %v", expectedError, r)
 			}
 		} else {
@@ -344,7 +407,7 @@ func TestVariableNotInScope(t *testing.T) {
 //	  }
 //	}
 func TestSearchVariableInScope(t *testing.T) {
-	sumAandBfunction := &ast.FunDef{
+	sumAandBfunction := &ast.FunctionDefinition{
 		Name: "sum_a_b",
 		Type: shared.INT,
 		Parameters: []*ast.Variable{
@@ -371,7 +434,7 @@ func TestSearchVariableInScope(t *testing.T) {
 					InstructionsBlock: &ast.Block{
 						Statements: []ast.Statement{
 							&ast.ReturnStatement{
-								Expression: &ast.Identifier{
+								Value: &ast.Identifier{
 									Name: "e",
 								},
 							},
@@ -379,7 +442,7 @@ func TestSearchVariableInScope(t *testing.T) {
 					},
 				},
 				&ast.ReturnStatement{
-					Expression: &ast.IntExpression{
+					Value: &ast.IntExpression{
 						Value: 0,
 					},
 				},
@@ -402,8 +465,8 @@ func TestSearchVariableInScope(t *testing.T) {
 				Condition: &ast.BoolExpression{Value: true},
 				InstructionsBlock: &ast.Block{
 					Statements: []ast.Statement{
-						&ast.Assignemnt{
-							Identifier: ast.Identifier{Name: "c"},
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "c"},
 							Value: &ast.FunctionCall{
 								Name: "sum_a_b",
 								Arguments: []ast.Expression{
@@ -417,20 +480,22 @@ func TestSearchVariableInScope(t *testing.T) {
 			},
 		},
 	}
-	functionMap := map[string]*ast.FunDef{
+	// functionMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
 		"sum_a_b": sumAandBfunction,
 	}
-	visitor := NewCodeVisitor(functionMap)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functionsMap
 	scopeReturnType := shared.VOID
 	scope := NewScope(nil, &scopeReturnType)
 	visitor.ScopeStack.Push(scope)
 	visitor.CurrentScope = scope
 
-	expectedError := fmt.Sprintf(UNDEFINED_VARIABLE, "e")
+	expectedError := NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, "e"), shared.NewPosition(0, 0))
 	defer func() {
 		if r := recover(); r != nil {
 			err, ok := r.(error)
-			if !ok || err.Error() != expectedError {
+			if !ok || err.Error() != expectedError.Error() {
 				t.Errorf("Expected panic with error: %v, but got: %v", expectedError, r)
 			}
 		} else {
@@ -461,7 +526,7 @@ func TestReturningNestedBlocks(t *testing.T) {
 				InstructionsBlock: &ast.Block{
 					Statements: []ast.Statement{
 						&ast.ReturnStatement{
-							Expression: ast.NewIntExpression(42, shared.NewPosition(1, 1)),
+							Value: ast.NewIntExpression(42, shared.NewPosition(1, 1)),
 						},
 					},
 				},
@@ -472,7 +537,7 @@ func TestReturningNestedBlocks(t *testing.T) {
 							InstructionsBlock: &ast.Block{
 								Statements: []ast.Statement{
 									&ast.ReturnStatement{
-										Expression: ast.NewIntExpression(82, shared.NewPosition(1, 1)),
+										Value: ast.NewIntExpression(82, shared.NewPosition(1, 1)),
 									},
 								},
 							},
@@ -483,8 +548,10 @@ func TestReturningNestedBlocks(t *testing.T) {
 		},
 	}
 
-	funMap := map[string]*ast.FunDef{"main": ast.NewFunctionDefinition("main", []*ast.Variable{}, shared.STRING, block, shared.NewPosition(1, 1))}
-	visitor := NewCodeVisitor(funMap)
+	//	funMap := map[string]*ast.FunctionDefinition{"main": ast.NewFunctionDefinition("main", []*ast.Variable{}, shared.STRING, block, shared.NewPosition(1, 1))}
+	funMap := map[string]ast.Function{"main": ast.NewFunctionDefinition("main", []*ast.Variable{}, shared.STRING, block, shared.NewPosition(1, 1))}
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = funMap
 	typeInt := shared.INT
 	visitor.ScopeStack.Push(NewScope(nil, &typeInt))
 	block.Accept(visitor)
@@ -522,9 +589,9 @@ func TestVisitIfStatement_ConditionTrue(t *testing.T) {
 		InstructionsBlock: block,
 	}
 
-	visitor := NewCodeVisitor(map[string]*ast.FunDef{})
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	visitor.ScopeStack.Push(NewScope(nil, nil))
-	visitor.LastResult = 99 // initial value to test the clearing
+	visitor.LastResult = 99
 	visitor.VisitIfStatement(ifStmt)
 
 	if visitor.LastResult != nil {
@@ -579,7 +646,7 @@ func TestVisitIfStatement_ElseBlock(t *testing.T) {
 
 // Testing if scope variables are actually stored in the scope
 func TestScopeVariables(t *testing.T) {
-	visitor := NewCodeVisitor(nil)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	globalScope := NewScope(nil, nil)
 	visitor.CurrentScope = globalScope
 
@@ -629,7 +696,7 @@ func TestScopeVariables(t *testing.T) {
 //	   int c := sum_a_b(1, 2)
 //	}
 func TestVisitFunctionCall(t *testing.T) {
-	sumAandBfunction := &ast.FunDef{
+	sumAandBfunction := &ast.FunctionDefinition{
 		Name: "sum_a_b",
 		Type: shared.INT,
 		Parameters: []*ast.Variable{
@@ -645,7 +712,7 @@ func TestVisitFunctionCall(t *testing.T) {
 		Block: &ast.Block{
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
-					Expression: &ast.SumExpression{
+					Value: &ast.SumExpression{
 						LeftExpression: &ast.Identifier{
 							Name: "a",
 						},
@@ -657,10 +724,12 @@ func TestVisitFunctionCall(t *testing.T) {
 			},
 		},
 	}
-	functionMap := map[string]*ast.FunDef{
+	// functionMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
 		"sum_a_b": sumAandBfunction,
 	}
-	visitor := NewCodeVisitor(functionMap)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functionsMap
 	scope := NewScope(nil, nil)
 	visitor.CurrentScope = scope
 	visitor.VisitFunctionCall(
@@ -677,13 +746,16 @@ func TestVisitFunctionCall(t *testing.T) {
 		},
 	)
 
+	if visitor.ReturnFlag {
+		t.Errorf("expected returnFlag to be false but is %v", visitor.ReturnFlag)
+	}
 	if visitor.LastResult != 3 {
 		t.Errorf("expected lastResult to be %v, got %v", 3, visitor.LastResult)
 	}
 }
 
-func TestVisitAsignmentWithFunctionCall(t *testing.T) {
-	sumAandBfunction := &ast.FunDef{
+func TestVisitFunctionCallWithIdentifier(t *testing.T) {
+	sumAandBfunction := &ast.FunctionDefinition{
 		Name: "sum_a_b",
 		Type: shared.INT,
 		Parameters: []*ast.Variable{
@@ -699,7 +771,7 @@ func TestVisitAsignmentWithFunctionCall(t *testing.T) {
 		Block: &ast.Block{
 			Statements: []ast.Statement{
 				&ast.ReturnStatement{
-					Expression: &ast.SumExpression{
+					Value: &ast.SumExpression{
 						LeftExpression: &ast.Identifier{
 							Name: "a",
 						},
@@ -711,10 +783,71 @@ func TestVisitAsignmentWithFunctionCall(t *testing.T) {
 			},
 		},
 	}
-	functionMap := map[string]*ast.FunDef{
+	//	functionMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
 		"sum_a_b": sumAandBfunction,
 	}
-	visitor := NewCodeVisitor(functionMap)
+	voidType := shared.VOID
+	scope := NewScope(nil, &voidType)
+	scope.AddVariable("one", 1, shared.INT, shared.Position{Line: 1, Column: 1})
+	scope.AddVariable("two", 2, shared.INT, shared.Position{Line: 1, Column: 1})
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functionsMap
+	visitor.CurrentScope = scope
+	visitor.VisitFunctionCall(
+		&ast.FunctionCall{
+			Name: "sum_a_b",
+			Arguments: []ast.Expression{
+				&ast.Identifier{
+					Name: "one",
+				},
+				&ast.Identifier{
+					Name: "two",
+				},
+			},
+		},
+	)
+
+	if visitor.LastResult != 3 {
+		t.Errorf("expected lastResult to be %v, got %v", 3, visitor.LastResult)
+	}
+}
+
+func TestVisitAsignmentWithFunctionCall(t *testing.T) {
+	sumAandBfunction := &ast.FunctionDefinition{
+		Name: "sum_a_b",
+		Type: shared.INT,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+			{
+				Name: "b",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					Value: &ast.SumExpression{
+						LeftExpression: &ast.Identifier{
+							Name: "a",
+						},
+						RightExpression: &ast.Identifier{
+							Name: "b",
+						},
+					},
+				},
+			},
+		},
+	}
+	// functionMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
+		"sum_a_b": sumAandBfunction,
+	}
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functionsMap
 	scope := NewScope(nil, nil)
 	visitor.CurrentScope = scope
 	visitor.VisitVariable(
@@ -762,7 +895,7 @@ func TestVisitAsignmentWithFunctionCall(t *testing.T) {
 //	  string d := "hello"
 //	}
 func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
-	sumAandBfunction := &ast.FunDef{
+	sumAandBfunction := &ast.FunctionDefinition{
 		Name: "sum_a_b",
 		Type: shared.INT,
 		Parameters: []*ast.Variable{
@@ -789,7 +922,7 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 					InstructionsBlock: &ast.Block{
 						Statements: []ast.Statement{
 							&ast.ReturnStatement{
-								Expression: &ast.SumExpression{
+								Value: &ast.SumExpression{
 									LeftExpression: &ast.Identifier{
 										Name: "a",
 									},
@@ -802,7 +935,7 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 					},
 				},
 				&ast.ReturnStatement{
-					Expression: &ast.IntExpression{
+					Value: &ast.IntExpression{
 						Value: 0,
 					},
 				},
@@ -820,8 +953,8 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 				Condition: &ast.BoolExpression{Value: true},
 				InstructionsBlock: &ast.Block{
 					Statements: []ast.Statement{
-						&ast.Assignemnt{
-							Identifier: ast.Identifier{Name: "c"},
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "c"},
 							Value: &ast.FunctionCall{
 								Name: "sum_a_b",
 								Arguments: []ast.Expression{
@@ -840,16 +973,21 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 			},
 		},
 	}
-	functionMap := map[string]*ast.FunDef{
+	// functionMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
 		"sum_a_b": sumAandBfunction,
 	}
-	visitor := NewCodeVisitor(functionMap)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functionsMap
 	scopeReturnType := shared.VOID
 	scope := NewScope(nil, &scopeReturnType)
 	visitor.ScopeStack.Push(scope)
 	visitor.CurrentScope = scope
 	visitor.VisitBlock(mainBlock)
 
+	if visitor.ReturnFlag {
+		t.Errorf("expected returnFlag to be false, got %v", visitor.ReturnFlag)
+	}
 	if visitor.LastResult != nil {
 		t.Errorf("expected lastResult to be %v, got %v", nil, visitor.LastResult)
 	}
@@ -862,7 +1000,7 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 }
 
 func TestParametersAndArguments(t *testing.T) {
-	sumAandBfunction := &ast.FunDef{
+	sumAandBfunction := &ast.FunctionDefinition{
 		Name: "sum_a_b",
 		Type: shared.INT,
 		Parameters: []*ast.Variable{
@@ -889,7 +1027,7 @@ func TestParametersAndArguments(t *testing.T) {
 					InstructionsBlock: &ast.Block{
 						Statements: []ast.Statement{
 							&ast.ReturnStatement{
-								Expression: &ast.SumExpression{
+								Value: &ast.SumExpression{
 									LeftExpression: &ast.Identifier{
 										Name: "a",
 									},
@@ -908,8 +1046,8 @@ func TestParametersAndArguments(t *testing.T) {
 	tests := []struct {
 		name          string
 		functionName  string
-		arguments     []ast.Expression
 		expectedError string
+		arguments     []ast.Expression
 	}{
 		{
 			name:         "String type mismatch",
@@ -918,7 +1056,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.StringExpression{Value: "one"},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: "Type mismatch: expected INT, got string",
+			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf("one")), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "float type mismatch",
@@ -927,7 +1065,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.FloatExpression{Value: 4.20},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: "Type mismatch: expected INT, got float64",
+			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf(4.20)), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "bool type mismatch",
@@ -936,7 +1074,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.BoolExpression{Value: true},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: "Type mismatch: expected INT, got bool",
+			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf(true)), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "Wrong number of arguments",
@@ -944,16 +1082,17 @@ func TestParametersAndArguments(t *testing.T) {
 			arguments: []ast.Expression{
 				&ast.IntExpression{Value: 1},
 			},
-			expectedError: "function sum_a_b expects 2 arguments but got 1",
+			expectedError: NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, "sum_a_b", 2, 1), shared.NewPosition(0, 0)).Error(),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			functionMap := map[string]*ast.FunDef{
+			functionsMap := map[string]ast.Function{
 				"sum_a_b": sumAandBfunction,
 			}
-			visitor := NewCodeVisitor(functionMap)
+			visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+			visitor.FunctionsMap = functionsMap
 			scopeReturnType := shared.VOID
 			scope := NewScope(nil, &scopeReturnType)
 			visitor.ScopeStack.Push(scope)
@@ -999,11 +1138,11 @@ func TestVisitSwitchCase(t *testing.T) {
 			initialVariable: 3,
 			condition: &ast.AndExpression{
 				LeftExpression: &ast.GreaterThanExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 2},
 				},
 				RightExpression: &ast.LessOrEqualExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 4},
 				},
 			},
@@ -1014,7 +1153,7 @@ func TestVisitSwitchCase(t *testing.T) {
 			name:            "a == 5",
 			initialVariable: 5,
 			condition: &ast.EqualsExpression{
-				LeftExpression:  ast.Identifier{Name: "a"},
+				LeftExpression:  &ast.Identifier{Name: "a"},
 				RightExpression: &ast.IntExpression{Value: 5},
 			},
 			expectedResult: "Decent beverage",
@@ -1025,11 +1164,11 @@ func TestVisitSwitchCase(t *testing.T) {
 			initialVariable: 6,
 			condition: &ast.AndExpression{
 				LeftExpression: &ast.GreaterThanExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 5},
 				},
 				RightExpression: &ast.LessThanExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 15},
 				},
 			},
@@ -1040,7 +1179,7 @@ func TestVisitSwitchCase(t *testing.T) {
 			name:            "a > 15",
 			initialVariable: 16,
 			condition: &ast.GreaterThanExpression{
-				LeftExpression:  ast.Identifier{Name: "a"},
+				LeftExpression:  &ast.Identifier{Name: "a"},
 				RightExpression: &ast.IntExpression{Value: 15},
 			},
 			expectedResult: "Whole bottle",
@@ -1050,10 +1189,10 @@ func TestVisitSwitchCase(t *testing.T) {
 			name:            "a is undefined",
 			initialVariable: 3,
 			condition: &ast.EqualsExpression{
-				LeftExpression:  ast.Identifier{Name: "b"},
+				LeftExpression:  &ast.Identifier{Name: "b"},
 				RightExpression: &ast.IntExpression{Value: 5},
 			},
-			expectedPanicMsg: "undefined: b",
+			expectedPanicMsg: NewSemanticError("undefined: b", shared.NewPosition(0, 0)).Error(),
 			conditionMet:     false,
 		},
 		{
@@ -1061,11 +1200,11 @@ func TestVisitSwitchCase(t *testing.T) {
 			initialVariable: 1,
 			condition: &ast.AndExpression{
 				LeftExpression: &ast.GreaterThanExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 2},
 				},
 				RightExpression: &ast.LessOrEqualExpression{
-					LeftExpression:  ast.Identifier{Name: "a"},
+					LeftExpression:  &ast.Identifier{Name: "a"},
 					RightExpression: &ast.IntExpression{Value: 4},
 				},
 			},
@@ -1076,7 +1215,7 @@ func TestVisitSwitchCase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			visitor := NewCodeVisitor(make(map[string]*ast.FunDef))
+			visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 			scopeReturnType := shared.STRING
 			baseScope := NewScope(nil, &scopeReturnType)
 			visitor.ScopeStack.Push(baseScope)
@@ -1116,7 +1255,7 @@ func TestVisitSwitchCase(t *testing.T) {
 
 // default => "A pint",
 func TestVisitDefaultSwitchCase(t *testing.T) {
-	visitor := NewCodeVisitor(make(map[string]*ast.FunDef))
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
 	scopeReturnType := shared.STRING
 	baseScope := NewScope(nil, &scopeReturnType)
 	visitor.ScopeStack.Push(baseScope)
@@ -1127,19 +1266,602 @@ func TestVisitDefaultSwitchCase(t *testing.T) {
 		OutputExpression: &ast.StringExpression{Value: "A pint"},
 	})
 
-    if visitor.LastResult != "A pint" {
-        t.Errorf("Expected lastResult to be 'A pint', got: %v", visitor.LastResult)
-    }
+	if visitor.LastResult != "A pint" {
+		t.Errorf("Expected lastResult to be 'A pint', got: %v", visitor.LastResult)
+	}
 }
 
-func TestWhileStatement(t *testing.T) {
-	// TODO
+func TestVisitSwitchStatement(t *testing.T) {
+	tests := []struct {
+		switchStmt     *ast.SwitchStatement
+		expectedResult any
+		name           string
+		expectPanic    bool
+	}{
+		{
+			name: "Single SwitchCase matches",
+			switchStmt: &ast.SwitchStatement{
+				Variables: []*ast.Variable{
+					{Name: "a", Type: shared.INT, Value: &ast.IntExpression{Value: 3}},
+				},
+				Cases: []ast.Case{
+					&ast.SwitchCase{
+						Condition: &ast.AndExpression{
+							LeftExpression: &ast.GreaterThanExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 2},
+							},
+							RightExpression: &ast.LessOrEqualExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 4},
+							},
+						},
+						OutputExpression: &ast.StringExpression{Value: "A pint"},
+					},
+				},
+			},
+			expectedResult: "A pint",
+			expectPanic:    false,
+		},
+		{
+			name: "Single SwitchCase does not match, DefaultSwitchCase executed",
+			switchStmt: &ast.SwitchStatement{
+				Variables: []*ast.Variable{
+					{Name: "a", Type: shared.INT, Value: &ast.IntExpression{Value: 5}},
+				},
+				Cases: []ast.Case{
+					&ast.SwitchCase{
+						Condition: &ast.AndExpression{
+							LeftExpression: &ast.GreaterThanExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 2},
+							},
+							RightExpression: &ast.LessOrEqualExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 4},
+							},
+						},
+						OutputExpression: &ast.StringExpression{Value: "A pint"},
+					},
+					&ast.DefaultSwitchCase{
+						OutputExpression: &ast.StringExpression{Value: "Decent beverage"},
+					},
+				},
+			},
+			expectedResult: "Decent beverage",
+			expectPanic:    false,
+		},
+		{
+			name: "Multiple DefaultSwitchCase instances",
+			switchStmt: &ast.SwitchStatement{
+				Variables: []*ast.Variable{
+					{Name: "a", Type: shared.INT, Value: &ast.IntExpression{Value: 5}},
+				},
+				Cases: []ast.Case{
+					&ast.DefaultSwitchCase{
+						OutputExpression: &ast.StringExpression{Value: "Decent beverage"},
+					},
+					&ast.DefaultSwitchCase{
+						OutputExpression: &ast.StringExpression{Value: "Whole bottle"},
+					},
+				},
+			},
+			expectedResult: nil,
+			expectPanic:    true,
+		},
+		{
+			name: "No SwitchCase matches, no DefaultSwitchCase",
+			switchStmt: &ast.SwitchStatement{
+				Variables: []*ast.Variable{
+					{Name: "a", Type: shared.INT, Value: &ast.IntExpression{Value: 1}},
+				},
+				Cases: []ast.Case{
+					&ast.SwitchCase{
+						Condition: &ast.AndExpression{
+							LeftExpression: &ast.GreaterThanExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 2},
+							},
+							RightExpression: &ast.LessOrEqualExpression{
+								LeftExpression:  &ast.Identifier{Name: "a"},
+								RightExpression: &ast.IntExpression{Value: 4},
+							},
+						},
+						OutputExpression: &ast.StringExpression{Value: "A pint"},
+					},
+				},
+			},
+			expectedResult: nil,
+			expectPanic:    false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+			scopeReturnType := shared.STRING
+			baseScope := NewScope(nil, &scopeReturnType)
+			visitor.ScopeStack.Push(baseScope)
+			scope := NewScope(nil, nil)
+			visitor.ScopeStack.Push(scope)
+			visitor.CurrentScope = scope
+
+			defer func() {
+				if r := recover(); r != nil {
+					if test.expectPanic {
+						err, ok := r.(error)
+						if !ok || err.Error() != NewSemanticError(MULTIPLE_DEFAULT_CASES, shared.NewPosition(0, 0)).Error() {
+							t.Errorf("Expected panic with error '%v', but got: %v", MULTIPLE_DEFAULT_CASES, r)
+						}
+					} else {
+						t.Errorf("Unexpected panic: %v", r)
+					}
+				} else if test.expectPanic {
+					t.Errorf("Expected panic, but did not panic")
+				} else if visitor.LastResult != test.expectedResult {
+					t.Errorf("Expected lastResult to be %v, got: %v", test.expectedResult, visitor.LastResult)
+				}
+			}()
+
+			visitor.VisitSwitchStatement(test.switchStmt)
+		})
+	}
 }
 
-func TestFunctionCall(t *testing.T) {
-	// TODO
+//	sum(a, b int) int {
+//	    return a + b
+//	}
+//
+//	switch int a := sum(1, 2) {
+//	    a>2 and a<=4  => "A pint"
+//	}
+func TestSwitchStatementWithFunctionCall(t *testing.T) {
+	sumAandBfunction := &ast.FunctionDefinition{
+		Name: "sum_a_b",
+		Type: shared.INT,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+			{
+				Name: "b",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.ReturnStatement{
+					Value: &ast.SumExpression{
+						LeftExpression: &ast.Identifier{
+							Name: "a",
+						},
+						RightExpression: &ast.Identifier{
+							Name: "b",
+						},
+					},
+				},
+			},
+		},
+	}
+	switchStmt := &ast.SwitchStatement{
+		Variables: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+				Value: &ast.FunctionCall{
+					Name: "sum_a_b",
+					Arguments: []ast.Expression{
+						&ast.IntExpression{Value: 1},
+						&ast.IntExpression{Value: 2},
+					},
+				},
+			},
+		},
+		Cases: []ast.Case{
+			&ast.SwitchCase{
+				Condition: &ast.AndExpression{
+					LeftExpression: &ast.GreaterThanExpression{
+						LeftExpression:  &ast.Identifier{Name: "a"},
+						RightExpression: &ast.IntExpression{Value: 2},
+					},
+					RightExpression: &ast.LessOrEqualExpression{
+						LeftExpression:  &ast.Identifier{Name: "a"},
+						RightExpression: &ast.IntExpression{Value: 4},
+					},
+				},
+				OutputExpression: &ast.StringExpression{Value: "A pint"},
+			},
+		},
+	}
+
+	//	functionsMap := map[string]*ast.FunctionDefinition{
+	functionsMap := map[string]ast.Function{
+		"sum_a_b": sumAandBfunction,
+	}
+	returnType := shared.STRING
+	scope := NewScope(nil, &returnType)
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.ScopeStack.Push(scope)
+	visitor.CurrentScope = scope
+	visitor.FunctionsMap = functionsMap
+	visitor.VisitSwitchStatement(switchStmt)
+
+	if visitor.LastResult != "A pint" {
+		t.Errorf("Expected lastResult to be 'A pint', got: %v", visitor.LastResult)
+	}
 }
 
-func TestMultipleFunctionDefinition(t *testing.T) {
-	// TODO
+// this switch should not return because it has block, not expression
+// it should only change the value of i
+//
+// int i := 10
+//
+//	switch {
+//	  i > 0   => {
+//		   i = i + i
+//		 },
+//		 default => {
+//		   i = 0
+//		 }
+//	}
+func TestSwitchWithBlock(t *testing.T) {
+	switchStmt := &ast.SwitchStatement{
+		Variables: []*ast.Variable{},
+		Cases: []ast.Case{
+			&ast.SwitchCase{
+				Condition: &ast.GreaterThanExpression{
+					LeftExpression:  &ast.Identifier{Name: "i"},
+					RightExpression: &ast.IntExpression{Value: 0},
+				},
+				OutputExpression: &ast.Block{
+					Statements: []ast.Statement{
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "i"},
+							Value: &ast.SumExpression{
+								LeftExpression:  &ast.Identifier{Name: "i"},
+								RightExpression: &ast.Identifier{Name: "i"},
+							},
+						},
+					},
+				},
+			},
+			&ast.DefaultSwitchCase{
+				OutputExpression: &ast.Block{
+					Statements: []ast.Statement{
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "i"},
+							Value:      &ast.IntExpression{Value: 0},
+						},
+					},
+				},
+			},
+		},
+	}
+	outerBlock := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.Variable{
+				Name: "i",
+				Type: shared.INT,
+				Value: &ast.IntExpression{
+					Value: 10,
+				},
+			},
+			switchStmt,
+		},
+	}
+
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	scopeType := shared.VOID
+	newScope := NewScope(nil, &scopeType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+	visitor.VisitBlock(outerBlock)
+
+	if visitor.ReturnFlag {
+		t.Errorf("Expected returnFlag to be false, got: %v", visitor.ReturnFlag)
+	}
+	if visitor.CurrentScope.InScope("i").Value != 20 {
+		t.Errorf("Expected lastResult to be 20, got: %v", visitor.LastResult)
+	}
+}
+
+// here we are testing whether we will get an error due to the lack of
+// return in function holding switch statement
+func TestFunctionWithSwitch(t *testing.T) {
+	switchStatement := &ast.SwitchStatement{
+		Variables: []*ast.Variable{},
+		Cases: []ast.Case{
+			&ast.SwitchCase{
+				Condition: &ast.AndExpression{
+					LeftExpression: &ast.GreaterThanExpression{
+						LeftExpression:  &ast.Identifier{Name: "a"},
+						RightExpression: &ast.IntExpression{Value: 2},
+					},
+					RightExpression: &ast.LessThanExpression{
+						LeftExpression:  &ast.Identifier{Name: "a"},
+						RightExpression: &ast.IntExpression{Value: 4},
+					},
+				},
+				OutputExpression: &ast.StringExpression{Value: "sample text"},
+			},
+		},
+	}
+	functionWithSwitch := &ast.FunctionDefinition{
+		Name: "isItThree",
+		Type: shared.STRING,
+		Parameters: []*ast.Variable{
+			{
+				Name: "a",
+				Type: shared.INT,
+			},
+		},
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				switchStatement,
+			},
+		},
+	}
+	mainBlock := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.Variable{
+				Name:  "someInt",
+				Type:  shared.INT,
+				Value: &ast.IntExpression{Value: 22},
+			},
+			&ast.FunctionCall{
+				Name: "isItThree",
+				Arguments: []ast.Expression{
+					&ast.Identifier{
+						Name: "someInt",
+					},
+				},
+			},
+		},
+	}
+
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap["isItThree"] = functionWithSwitch
+	scopeReturnType := shared.VOID
+	baseScope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(baseScope)
+	visitor.CurrentScope = baseScope
+
+	errorMsg := NewSemanticError(fmt.Sprintf(MISSING_RETURN, shared.STRING), shared.NewPosition(0, 0)).Error()
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok || err.Error() != errorMsg {
+				t.Errorf("Expected panic with error '%s', but got: %v", errorMsg, r)
+			}
+		} else {
+			t.Errorf("Expected panic due to missing return, but did not panic")
+		}
+	}()
+
+	visitor.VisitBlock(mainBlock)
+}
+
+// testing if while statement corectly changes variables in parent scope
+//
+// TESTING CASE:
+//
+//	{
+//		int i := 0
+//		while i < 5 {
+//			i = i + 1
+//		}
+//	}
+func TestVisitWhileStatement(t *testing.T) {
+	block := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.Variable{
+				Value: &ast.IntExpression{Value: 0},
+				Name:  "i",
+				Type:  shared.INT,
+			},
+			&ast.WhileStatement{
+				Condition: &ast.LessThanExpression{
+					LeftExpression:  &ast.Identifier{Name: "i"},
+					RightExpression: &ast.IntExpression{Value: 5},
+				},
+				InstructionsBlock: &ast.Block{
+					Statements: []ast.Statement{
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "i"},
+							Value: &ast.SumExpression{
+								LeftExpression:  &ast.Identifier{Name: "i"},
+								RightExpression: &ast.IntExpression{Value: 1},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	voidType := shared.VOID
+	newScope := NewScope(nil, &voidType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+	visitor.VisitBlock(block)
+
+	if variable := visitor.CurrentScope.InScope("i"); variable.Value != 5 {
+		t.Errorf("Expected variable 'i' in parent scope to be 4, but is %v", variable.Value)
+	}
+}
+
+// testing valid returning from while statement
+func TestVisitWhileStatementWithReturn(t *testing.T) {
+	block := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.Variable{
+				Value: &ast.IntExpression{Value: 0},
+				Name:  "i",
+				Type:  shared.INT,
+			},
+			&ast.WhileStatement{
+				Condition: &ast.LessThanExpression{
+					LeftExpression:  &ast.Identifier{Name: "i"},
+					RightExpression: &ast.IntExpression{Value: 5},
+				},
+				InstructionsBlock: &ast.Block{
+					Statements: []ast.Statement{
+						&ast.Assignment{
+							Identifier: &ast.Identifier{Name: "i"},
+							Value: &ast.SumExpression{
+								LeftExpression:  &ast.Identifier{Name: "i"},
+								RightExpression: &ast.IntExpression{Value: 1},
+							},
+						},
+						&ast.IfStatement{
+							Condition: &ast.EqualsExpression{
+								LeftExpression:  &ast.Identifier{Name: "i"},
+								RightExpression: &ast.IntExpression{Value: 3},
+							},
+							InstructionsBlock: &ast.Block{
+								Statements: []ast.Statement{
+									&ast.ReturnStatement{
+										Value: &ast.IntExpression{Value: 22},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	scopeReturnType := shared.INT
+	newScope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+	visitor.VisitBlock(block)
+
+	if !visitor.ReturnFlag {
+		t.Errorf("Expected return flag to be set")
+	}
+	if variable := visitor.CurrentScope.InScope("i"); variable.Value != 3 {
+		t.Errorf("Expected variable 'i' in parent scope to be 3, but is %v", variable.Value)
+	}
+}
+
+func TestEmbededFunction(t *testing.T) {
+	block := &ast.Block{
+		Statements: []ast.Statement{
+			&ast.FunctionCall{
+				Name: "println",
+				Arguments: []ast.Expression{
+					&ast.IntExpression{Value: 22},
+				},
+			},
+			&ast.FunctionCall{
+				Name: "println",
+				Arguments: []ast.Expression{
+					&ast.StringExpression{Value: "halo halo"},
+				},
+			},
+		},
+	}
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	scopeReturnType := shared.VOID
+	newScope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+
+	old := os.Stdout // keep backup of the real stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	visitor.VisitBlock(block)
+
+	outC := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+
+	w.Close()
+	os.Stdout = old // restoring the real stdout
+	out := <-outC
+
+	expected := "22\nhalo halo\n"
+	actual := out
+	if actual != expected {
+		t.Errorf("Printed value is incorrect. Expected: %s, Got: %s", expected, actual)
+	}
+}
+
+func TestVariableDeclarationMissmatch(t *testing.T) {
+	variableDeclaration := &ast.Variable{
+		Value: &ast.StringExpression{Value: "missmatch???"},
+		Name:  "i",
+		Type:  shared.INT,
+	}
+
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	scopeReturnType := shared.INT
+	newScope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+	expectedError := NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf("missmatch???")), shared.NewPosition(0, 0))
+
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok || err.Error() != expectedError.Error() {
+				t.Errorf("Expected panic with error: %v, but got: %v", expectedError, r)
+			}
+		} else {
+			t.Errorf("Expected panic due to type mismatch, but did not panic")
+		}
+	}()
+
+	visitor.VisitVariable(variableDeclaration)
+}
+
+func TestRecursion(t *testing.T) {
+	recursiveFunc := &ast.FunctionDefinition{
+		Name: "recursiveFunc",
+		Block: &ast.Block{
+			Statements: []ast.Statement{
+				&ast.FunctionCall{Name: "recursiveFunc", Arguments: []ast.Expression{}},
+			},
+		},
+		Parameters: []*ast.Variable{},
+		Type:       shared.VOID,
+		Position:   shared.NewPosition(0, 0),
+	}
+	functioncall := &ast.FunctionCall{
+		Name:      "recursiveFunc",
+		Arguments: []ast.Expression{},
+	}
+
+	functions := map[string]ast.Function{
+		recursiveFunc.Name: recursiveFunc,
+	}
+	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
+	visitor.FunctionsMap = functions
+	scopeReturnType := shared.INT
+	newScope := NewScope(nil, &scopeReturnType)
+	visitor.ScopeStack.Push(newScope)
+	visitor.CurrentScope = newScope
+	visitor.MaxRecursionDepth = 2
+	expectedError := NewSemanticError(fmt.Sprintf(MAX_RECURSION_DEPTH_EXCEEDED, recursiveFunc.Name), shared.NewPosition(0, 0))
+
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok || err.Error() != expectedError.Error() {
+				t.Errorf("Expected panic with error: %v, but got: %v", expectedError, r)
+			}
+		} else {
+			t.Errorf("Expected panic due to type mismatch, but did not panic")
+		}
+	}()
+
+	visitor.VisitFunctionCall(functioncall)
 }

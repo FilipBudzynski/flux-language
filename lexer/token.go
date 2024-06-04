@@ -95,6 +95,7 @@ var KeyWords = map[string]TokenType{
 	"return":  RETURN,
 	"and":     AND,
 	"or":      OR,
+	"as":      AS,
 }
 
 var DoubleOperators = map[string]TokenType{

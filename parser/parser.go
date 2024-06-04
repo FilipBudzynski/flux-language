@@ -29,7 +29,16 @@ func NewParser(lexer *lex.Lexer, errHandler func(error)) *Parser {
 }
 
 func (p *Parser) consumeToken() {
-	p.token = *p.lexer.GetNextToken()
+	for {
+        token := p.lexer.GetNextToken()
+        if token.Type == lex.UNDEFINED {
+            panic(NewParserError(fmt.Sprintf(INVALID_TOKEN, token.Position.Line, token.Position.Column, string(token.Value.(rune)))))
+        }
+		p.token = *token
+		if p.token.Type != lex.COMMENT {
+			break
+		} 
+	}
 }
 
 func (p *Parser) requierAndConsume(tokenType lex.TokenType, syntaxErrMessage string) lex.Token {
@@ -45,7 +54,7 @@ func (p *Parser) requierAndConsume(tokenType lex.TokenType, syntaxErrMessage str
 func (p *Parser) ParseProgram() *Program {
 	defer p.recoverFromPanic()
 
-	functions := map[string]*FunDef{}
+	functions := map[string]*FunctionDefinition{}
 
 	for funDef := p.parseFunDef(); funDef != nil; funDef = p.parseFunDef() {
 		if f, ok := functions[funDef.Name]; ok {
@@ -64,7 +73,7 @@ func (p *Parser) ParseProgram() *Program {
 }
 
 // function_definition = identifier , "(", [ parameters ], ")", [ type_annotation ] , block ;
-func (p *Parser) parseFunDef() *FunDef {
+func (p *Parser) parseFunDef() *FunctionDefinition {
 	if p.token.Type != lex.IDENTIFIER {
 		return nil
 	}
@@ -189,6 +198,9 @@ func (p *Parser) parseStatement() Statement {
 	if statement := p.parseAssignment(); statement != nil {
 		return statement
 	}
+	if statement := p.parseFunctionCallStatement(); statement != nil {
+		return statement
+	}
 	if statement := p.parseConditionalStatement(); statement != nil {
 		return statement
 	}
@@ -282,6 +294,28 @@ func (p *Parser) parseFunctionCall(name string, position shared.Position) *Funct
 	return NewFunctionCall(name, position, arguments)
 }
 
+// functionCall = identifier, "(", [ argumets ], ")" ;
+func (p *Parser) parseFunctionCallStatement() *FunctionCall {
+	if p.token.Type != lex.IDENTIFIER {
+		return nil
+	}
+
+	name := p.token.Value.(string)
+	position := p.token.Position
+	p.consumeToken()
+
+	if p.token.Type != lex.LEFT_PARENTHESIS {
+		return nil
+	}
+	p.consumeToken()
+
+	arguments := p.parseArguments()
+
+	p.requierAndConsume(lex.RIGHT_PARENTHESIS, SYNTAX_ERROR_FUNC_CALL_NOT_CLOSED)
+
+	return NewFunctionCall(name, position, arguments)
+}
+
 // arguments = expression , { "," , expression } ;
 func (p *Parser) parseArguments() []Expression {
 	expressions := []Expression{}
@@ -294,6 +328,7 @@ func (p *Parser) parseArguments() []Expression {
 	expressions = append(expressions, expression)
 
 	for p.token.Type == lex.COMMA {
+		p.consumeToken()
 		expression := p.parseExpression()
 		if expression == nil {
 			panic(NewParserError(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Line, p.token.Position.Column, p.token.Type.TypeName())))
@@ -443,6 +478,7 @@ func (p *Parser) parseCastedTerm() Expression {
 	}
 	position := p.token.Position
 
+	p.consumeToken()
 	typeAnnotation := p.parseTypeAnnotation()
 	if typeAnnotation == nil {
 		panic(NewParserError(fmt.Sprintf(SYNTAX_ERROR_NO_TYPE_IN_CAST, p.token.Position.Line, p.token.Position.Column)))
@@ -619,14 +655,11 @@ func (p *Parser) parseSwitchStatement() *SwitchStatement {
 	if p.token.Type != lex.SWITCH {
 		return nil
 	}
+
+	position := p.token.Position
 	p.consumeToken()
 
-	// var expression Expression
-
 	variables := p.parseSwitchVariables()
-	// if variables == nil {
-	// 	expression = p.parseExpression()
-	// }
 	// if variables nil it means that the switch case is empty and we allow it to be so
 
 	p.requierAndConsume(lex.LEFT_BRACE, SYNTAX_ERROR_NO_LEFT_CURLY_BRACKET_IN_SWITCH)
@@ -651,17 +684,22 @@ func (p *Parser) parseSwitchStatement() *SwitchStatement {
 	p.requierAndConsume(lex.RIGHT_BRACE, SYNTAX_ERROR_NOT_CLOSED_SWITCH)
 
 	// return NewSwitchStatement(variables, expression, cases)
-	return NewSwitchStatement(variables, cases)
+	return NewSwitchStatement(variables, cases, position)
 }
 
-// switch_case = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ), } ;
+// switch_case = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ) ;
 func (p *Parser) parseSwitchCase() Case {
 	if p.token.Type == lex.DEFAULT {
 		p.consumeToken()
-		p.requierAndConsume(lex.CASE_ARROW, SYNTAX_ERROR_NO_ARROW)
-		outputExpression := p.parseExpression()
+		token := p.requierAndConsume(lex.CASE_ARROW, SYNTAX_ERROR_NO_ARROW)
+		postition := token.Position
 
-		return NewDefaultCase(outputExpression)
+		outputExpression := p.parseExpression()
+		if outputExpression == nil {
+			outputExpression = p.parseBlock()
+		}
+
+		return NewDefaultCase(outputExpression, postition)
 	}
 
 	condition := p.parseExpression()
@@ -670,17 +708,17 @@ func (p *Parser) parseSwitchCase() Case {
 		panic(NewParserError(fmt.Sprintf(ERROR_MISSING_SWITCH_CASE, p.token.Position.Line, p.token.Position.Column)))
 	}
 
-	p.requierAndConsume(lex.CASE_ARROW, SYNTAX_ERROR_NO_ARROW)
+	token := p.requierAndConsume(lex.CASE_ARROW, SYNTAX_ERROR_NO_ARROW)
+	position := token.Position
 
 	outputExpression := p.parseExpression()
 	if outputExpression == nil {
 		outputExpression = p.parseBlock()
 	}
 
-	return NewSwitchCase(condition, outputExpression)
+	return NewSwitchCase(condition, outputExpression, position)
 }
 
-// return_statement = "return" , [ expression || switch_statement ] ;
 // return_statement = "return" , [ expression ] ;
 func (p *Parser) parseReturnStatement() *ReturnStatement {
 	if p.token.Type != lex.RETURN {
@@ -689,8 +727,7 @@ func (p *Parser) parseReturnStatement() *ReturnStatement {
 	p.consumeToken()
 
 	expression := p.parseExpression()
-	// if expression == nil {
-	// 	panic(fmt.Sprintf(ERROR_MISSING_EXPRESSION, p.token.Position.Line, p.token.Position.Column, p.token.Type.TypeName()))
-	// }
+    // nil expression is allowed for void functins
+    
 	return NewReturnStatement(expression)
 }

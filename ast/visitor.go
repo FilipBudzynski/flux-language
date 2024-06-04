@@ -1,14 +1,31 @@
 package ast
 
+import "reflect"
+
+type Function interface {
+	Node
+}
+
+type EmbeddedFunction struct {
+	Func       func(...any) any
+	Name       string
+	Parameters []reflect.Type
+	Variadic   bool
+}
+
+func (ef *EmbeddedFunction) Accept(v Visitor) {
+	v.VisitEmbeddedFunction(ef)
+}
+
 type Visitor interface {
-	VisitIntExpression(*IntExpression) 
+	VisitIntExpression(*IntExpression)
 	VisitFloatExpression(*FloatExpression)
 	VisitStringExpression(*StringExpression)
 	VisitBoolExpression(*BoolExpression)
 	VisitIdentifier(*Identifier)
 	VisitFunctionCall(*FunctionCall)
 	VisitVariable(*Variable)
-	VisitAssignement(*Assignemnt)
+	VisitAssignement(*Assignment)
 	VisitNegateExpression(*NegateExpression)
 	VisitCastExpression(*CastExpression)
 	VisitMultiplyExpression(*MultiplyExpression)
@@ -30,6 +47,7 @@ type Visitor interface {
 	VisitSwitchCase(*SwitchCase)
 	VisitDefaultSwitchCase(*DefaultSwitchCase)
 	VisitWhileStatement(*WhileStatement)
-	VisitFunDef(*FunDef)
+	VisitFunctionDefinition(*FunctionDefinition)
 	VisitProgram(*Program)
+	VisitEmbeddedFunction(*EmbeddedFunction)
 }

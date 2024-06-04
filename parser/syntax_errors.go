@@ -9,7 +9,7 @@ const (
 	SYNTAX_ERROR_NO_TYPE                                   = "error [%v, %v]: no type for parameter group"
 	SYNTAX_ERROR_NO_PARAMETERS_AFTER_COMMA                 = "error [%v, %v]: no parameters defined after comma"
 	SYNTAX_ERROR_NO_TYPE_IN_CAST                           = "error [%v, %v]: no type in casted expression"
-    ERROR_NO_ETX_TOKEN                                     = "error [%v, %v]: program parsed but no ETX was found"
+	ERROR_NO_ETX_TOKEN                                     = "error [%v, %v]: program parsed but no ETX was found"
 	SYNTAX_ERROR_EXPECTED_RIGHT_BRACE                      = "error [%v, %v]: expected right brace, to close the block"
 	SYNTAX_ERROR_UNKNOWN_STATEMENT                         = "error [%v, %v]: unknown statement"
 	SYNTAX_ERROR_MISSING_COLON_ASSIGN                      = "error [%v, %v]: missing ':' after identifier in variable declaration"
@@ -34,6 +34,7 @@ const (
 	SYNTAX_ERROR_BAD_VARIABLE_DECLARATION                  = "error [%v, %v]: bad variable declaration in switch statement"
 	SYNTAX_ERROR_EMPTY_BLOCK_IN_IF_STATEMENT               = "error [%v, %v]: empty block in if statement"
 	SYNTAX_ERROR_EMPTY_BLOCK_IN_WHILE_STATEMENT            = "error [%v, %v]: empty block in while statement"
+    INVALID_TOKEN                                          = "error [%v, %v]: received invalid Token: '%s'"
 )
 
 type ParserError struct {

@@ -2,6 +2,7 @@ package ast
 
 import (
 	"reflect"
+	"tkom/shared"
 )
 
 type Block struct {
@@ -29,4 +30,8 @@ func (b *Block) Equals(other Expression) bool {
 		}
 	}
 	return true
+}
+
+func (b *Block) GetPosition() shared.Position {
+	return shared.Position{}
 }

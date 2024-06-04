@@ -29,8 +29,8 @@ func NewLexer(scanner *Scanner, identifierLimit, stringLimit, intLimit int) *Lex
 func (l *Lexer) GetNextToken() (t *Token) {
 	defer func() {
 		if err := recover(); err != nil {
-			l.ErrorHandler(err.(error))
 			t = NewToken(ETX, l.pos, nil)
+			l.ErrorHandler(err.(error))
 		}
 	}()
 
@@ -66,7 +66,7 @@ func (l *Lexer) GetNextToken() (t *Token) {
 		return t
 	}
 
-	return nil
+	return NewToken(UNDEFINED, l.scanner.Position(), l.scanner.Character())
 }
 
 func (l *Lexer) consume() rune {
@@ -209,7 +209,7 @@ func (l *Lexer) createString(position shared.Position) *Token {
 	}
 	var strBuilder strings.Builder
 	l.consume()
-	for l.scanner.Character() != '"' && l.scanner.Character() != EOF {
+	for l.scanner.Character() != '"' && l.scanner.Character() != EOF && l.scanner.Character() != '\n'{
 		if strBuilder.Len() == l.stringLimit {
 			panic(NewLexerError(STRING_CAPACITY_EXCEEDED, l.pos))
 		}

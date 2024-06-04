@@ -1,12 +1,13 @@
 package ast
 
 type ReturnStatement struct {
-	Expression Expression
+	Value Expression
+
 }
 
 func NewReturnStatement(expression Expression) *ReturnStatement {
 	return &ReturnStatement{
-		Expression: expression,
+		Value: expression,
 	}
 }
 

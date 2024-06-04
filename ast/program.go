@@ -1,26 +1,26 @@
 package ast
 
 type Program struct {
-	functions map[string]*FunDef
+	Functions map[string]*FunctionDefinition
 }
 
-func NewProgram(functions map[string]*FunDef) *Program {
-	return &Program{functions: functions}
+func NewProgram(functions map[string]*FunctionDefinition) *Program {
+	return &Program{Functions: functions}
 }
 
-func (p *Program) Equals(other *Program) bool {
-	if len(p.functions) != len(other.functions) {
-		return false
-	}
-
-	for k, v := range p.functions {
-		if !v.Equals(other.functions[k]) {
-			return false
-		}
-	}
-
-	return true
-}
+// func (p *Program) Equals(other *Program) bool {
+// 	if len(p.functions) != len(other.functions) {
+// 		return false
+// 	}
+//
+// 	for k, v := range p.functions {
+// 		if !v.Equals(other.functions[k]) {
+// 			return false
+// 		}
+// 	}
+//
+// 	return true
+// }
 
 func (p *Program) Accept(v Visitor) {
 	v.VisitProgram(p)

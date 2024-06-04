@@ -36,8 +36,9 @@ var ValidTypeAnnotation = map[lexer.TokenType]shared.TypeAnnotation{
 }
 
 type Expression interface {
-    Node
+	Node
 	Equals(Expression) bool
+	GetPosition() shared.Position
 }
 
 type OrExpression struct {
@@ -52,6 +53,10 @@ func NewOrExpression(leftExpression Expression, rightExpression Expression, posi
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *OrExpression) GetPosition() shared.Position {
+	return e.Position
 }
 
 func (e *OrExpression) Equals(other Expression) bool {
@@ -76,6 +81,10 @@ func NewAndExpression(leftExpression Expression, rightExpression Expression, pos
 	}
 }
 
+func (e *AndExpression) GetPosition() shared.Position {
+	return e.Position
+}
+
 func (e *AndExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -96,6 +105,10 @@ func NewEqualsExpression(leftExpression Expression, rightExpression Expression, 
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *EqualsExpression) GetPosition() shared.Position {
+	return e.Position
 }
 
 func (e *EqualsExpression) Equals(other Expression) bool {
@@ -120,6 +133,10 @@ func NewNotEqualsExpression(leftExpression Expression, rightExpression Expressio
 	}
 }
 
+func (e *NotEqualsExpression) GetPosition() shared.Position {
+	return e.Position
+}
+
 func (e *NotEqualsExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -140,6 +157,10 @@ func NewGreaterThanExpression(leftExpression Expression, rightExpression Express
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *GreaterThanExpression) GetPosition() shared.Position {
+	return e.Position
 }
 
 func (e *GreaterThanExpression) Equals(other Expression) bool {
@@ -164,6 +185,10 @@ func NewLessThanExpression(leftExpression Expression, rightExpression Expression
 	}
 }
 
+func (e *LessThanExpression) GetPosition() shared.Position {
+	return e.Position
+}
+
 func (e *LessThanExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -184,6 +209,10 @@ func NewGreaterOrEqualExpression(leftExpression Expression, rightExpression Expr
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *GreaterOrEqualExpression) GetPosition() shared.Position {
+	return e.Position
 }
 
 func (e *GreaterOrEqualExpression) Equals(other Expression) bool {
@@ -208,6 +237,10 @@ func NewLessOrEqualExpression(leftExpression Expression, rightExpression Express
 	}
 }
 
+func (e *LessOrEqualExpression) GetPosition() shared.Position {
+    return e.Position
+}
+
 func (e *LessOrEqualExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -228,6 +261,10 @@ func NewSumExpression(leftExpression Expression, rightExpression Expression, pos
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *SumExpression) GetPosition() shared.Position {
+    return e.Position
 }
 
 func (e *SumExpression) Equals(other Expression) bool {
@@ -252,6 +289,10 @@ func NewSubstractExpression(leftExpression Expression, rightExpression Expressio
 	}
 }
 
+func (e *SubstractExpression) GetPosition() shared.Position {
+    return e.Position
+}
+
 func (e *SubstractExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -272,6 +313,10 @@ func NewMultiplyExpression(leftExpression Expression, rightExpression Expression
 		RightExpression: rightExpression,
 		Position:        position,
 	}
+}
+
+func (e *MultiplyExpression) GetPosition() shared.Position {
+    return e.Position
 }
 
 func (e *MultiplyExpression) Equals(other Expression) bool {
@@ -296,6 +341,10 @@ func NewDivideExpression(leftExpression Expression, rightExpression Expression, 
 	}
 }
 
+func (e *DivideExpression) GetPosition() shared.Position {
+    return e.Position
+}
+
 func (e *DivideExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -318,6 +367,10 @@ func NewCastExpression(leftExpression Expression, typeAnnotation shared.TypeAnno
 	}
 }
 
+func (e *CastExpression) GetPosition() shared.Position {
+    return e.Position
+}
+
 func (e *CastExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -336,6 +389,10 @@ func NewNegateExpression(expression Expression, position shared.Position) Expres
 		Expression: expression,
 		Position:   position,
 	}
+}
+
+func (e *NegateExpression) GetPosition() shared.Position {
+    return e.Position
 }
 
 func (e *NegateExpression) Equals(other Expression) bool {
@@ -358,6 +415,10 @@ func NewIntExpression(value int, position shared.Position) Expression {
 	}
 }
 
+func (e *IntExpression) GetPosition() shared.Position {
+    return e.Position
+}
+
 func (e *IntExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -376,6 +437,10 @@ func NewFloatExpression(value float64, position shared.Position) Expression {
 		Value:    value,
 		Position: position,
 	}
+}
+
+func (e *FloatExpression) GetPosition() shared.Position {
+    return e.Position
 }
 
 func (e *FloatExpression) Equals(other Expression) bool {
@@ -398,6 +463,9 @@ func NewBoolExpression(value bool, position shared.Position) Expression {
 	}
 }
 
+func (e *BoolExpression) GetPosition() shared.Position {
+    return e.Position
+}
 func (e *BoolExpression) Equals(other Expression) bool {
 	return reflect.DeepEqual(e, other)
 }
@@ -416,6 +484,10 @@ func NewStringExpression(value string, position shared.Position) Expression {
 		Value:    value,
 		Position: position,
 	}
+}
+
+func (e *StringExpression) GetPosition() shared.Position {
+    return e.Position
 }
 
 func (e *StringExpression) Equals(other Expression) bool {

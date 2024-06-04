@@ -1,7 +1,6 @@
 package ast
 
 import (
-	"reflect"
 	"tkom/shared"
 )
 
@@ -23,48 +22,48 @@ func NewVariable(variableType shared.TypeAnnotation, name string, value Expressi
 	}
 }
 
-func (v *Variable) Equals(other Variable) bool {
-	if v.Type != other.Type {
-		return false
-	}
-	if v.Value != other.Value {
-		return false
-	}
-	if v.Name != other.Name {
-		return false
-	}
-	if !reflect.DeepEqual(v.Position, other.Position) {
-		return false
-	}
-	return true
-}
+// func (v *Variable) Equals(other Variable) bool {
+// 	if v.Type != other.Type {
+// 		return false
+// 	}
+// 	if v.Value != other.Value {
+// 		return false
+// 	}
+// 	if v.Name != other.Name {
+// 		return false
+// 	}
+// 	if !reflect.DeepEqual(v.Position, other.Position) {
+// 		return false
+// 	}
+// 	return true
+// }
 
 func (a *Variable) Accept(v Visitor) {
 	v.VisitVariable(a)
 }
 
-type Assignemnt struct {
+type Assignment struct {
 	Value      Expression
-	Identifier Identifier
+	Identifier *Identifier
 }
 
-func NewAssignment(identifier Identifier, value Expression) *Assignemnt {
-	return &Assignemnt{
+func NewAssignment(identifier *Identifier, value Expression) *Assignment {
+	return &Assignment{
 		Identifier: identifier,
 		Value:      value,
 	}
 }
 
-func (v *Assignemnt) Equals(other Assignemnt) bool {
-	if v.Value != other.Value {
-		return false
-	}
-	if !v.Identifier.Equals(&other.Identifier) {
-		return false
-	}
-	return false
-}
+// func (v *Assignemnt) Equals(other Assignemnt) bool {
+// 	if v.Value != other.Value {
+// 		return false
+// 	}
+// 	if !v.Identifier.Equals(other.Identifier) {
+// 		return false
+// 	}
+// 	return false
+// }
 
-func (a *Assignemnt) Accept(v Visitor) {
+func (a *Assignment) Accept(v Visitor) {
 	v.VisitAssignement(a)
 }

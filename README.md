@@ -750,8 +750,8 @@ Aby uruchomić program napisany w języku **flux** należy:
 
 - posiadać kompilator [Golang](https://go.dev/dl/)
 - sklonować to repozytorium i przejść do niego
-- zbudować projekt `shellgo build -o flux .`
-- przenieść binary `sudo mv flux /usr/local/bin/` lub uruchamiać program poprzez `./flux`
+- zbudować projekt `$ go build -o flux .`
+- przenieść binary `$ sudo mv flux /usr/local/bin/` lub uruchamiać program poprzez `./flux`
 
 ---
 

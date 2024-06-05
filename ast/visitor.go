@@ -1,20 +1,9 @@
 package ast
 
-import "reflect"
-
 type Function interface {
 	Node
-}
-
-type EmbeddedFunction struct {
-	Func       func(...any) any
-	Name       string
-	Parameters []reflect.Type
-	Variadic   bool
-}
-
-func (ef *EmbeddedFunction) Accept(v Visitor) {
-	v.VisitEmbeddedFunction(ef)
+	GetParametersLen() int
+	IsVariadic() bool
 }
 
 type Visitor interface {

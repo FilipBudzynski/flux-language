@@ -648,7 +648,6 @@ func (p *Parser) parseSwitchVariables() (variables []*Variable) {
 	return variables
 }
 
-// switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) | expression ], "{", switch_case, { ",", switch_case "}" ;
 // switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) ], "{", switch_case, { ",", switch_case "}" ;
 // TODO: przeciez tutaj expression nie ma najmniejszego sensu jezeli nie mamy implicit porównań
 func (p *Parser) parseSwitchStatement() *SwitchStatement {
@@ -687,7 +686,7 @@ func (p *Parser) parseSwitchStatement() *SwitchStatement {
 	return NewSwitchStatement(variables, cases, position)
 }
 
-// switch_case = ( ( [relation_operator], expression ) | "default" ), "=>", ( expression | block ) ;
+// switch_case = ( expression | "default" ), "=>", ( expression | block ) ;
 func (p *Parser) parseSwitchCase() Case {
 	if p.token.Type == lex.DEFAULT {
 		p.consumeToken()

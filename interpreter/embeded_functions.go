@@ -5,6 +5,7 @@ import (
 	"math"
 	"reflect"
 	"tkom/ast"
+	"tkom/shared"
 )
 
 var PrintFunction = &ast.EmbeddedFunction{
@@ -17,7 +18,7 @@ var PrintFunction = &ast.EmbeddedFunction{
 		fmt.Println(output)
 		return nil
 	},
-	Parameters: []reflect.Type{},
+	Parameters: []any{},
 	Variadic:   true,
 }
 
@@ -29,7 +30,7 @@ var PrintlnFunction = &ast.EmbeddedFunction{
 		}
 		return nil
 	},
-	Parameters: []reflect.Type{},
+	Parameters: []any{},
 	Variadic:   true,
 }
 
@@ -41,9 +42,9 @@ var ModuloFunction = &ast.EmbeddedFunction{
 		b := args[1].(int)
 		return a%b == 0
 	},
-	Parameters: []reflect.Type{
-		reflect.TypeOf(0),
-		reflect.TypeOf(0),
+	Parameters: []any{
+		shared.FLOAT,
+		shared.FLOAT,
 	},
 	Variadic: false,
 }
@@ -58,8 +59,8 @@ var SquareRootFunction = &ast.EmbeddedFunction{
 			panic(fmt.Errorf(INVALID_ARGUMENTS_TYPE, reflect.TypeOf(args[0])))
 		}
 	},
-	Parameters: []reflect.Type{
-		reflect.TypeOf(0.0),
+	Parameters: []any{
+		shared.FLOAT,
 	},
 	Variadic: false,
 }
@@ -73,9 +74,9 @@ var PowerFunction = &ast.EmbeddedFunction{
 
 		return math.Pow(a, b)
 	},
-	Parameters: []reflect.Type{
-		reflect.TypeOf(0.0),
-		reflect.TypeOf(0.0),
+	Parameters: []any{
+		shared.FLOAT,
+		shared.FLOAT,
 	},
 	Variadic: false,
 }

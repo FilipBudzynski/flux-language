@@ -13,7 +13,6 @@ type SwitchStatement struct {
 	Variables []*Variable
 	Cases     []Case
 	Position  shared.Position
-	// Expression Expression
 }
 
 func NewSwitchStatement(variables []*Variable, cases []Case, position shared.Position) *SwitchStatement {
@@ -21,7 +20,6 @@ func NewSwitchStatement(variables []*Variable, cases []Case, position shared.Pos
 		Variables: variables,
 		Cases:     cases,
 		Position:  position,
-		// Expression: expression,
 	}
 }
 
@@ -89,10 +87,3 @@ func (d *DefaultSwitchCase) Accept(v Visitor) {
 func (d *DefaultSwitchCase) GetPosition() shared.Position {
 	return d.Position
 }
-
-// func (s *DefaultSwitchCase) Equals(o Case) bool {
-// 	if other, ok := o.(*SwitchCase); ok {
-// 		return s.OutputExpression.Equals(other.OutputExpression)
-// 	}
-// 	return false
-// }

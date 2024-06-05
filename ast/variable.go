@@ -22,22 +22,6 @@ func NewVariable(variableType shared.TypeAnnotation, name string, value Expressi
 	}
 }
 
-// func (v *Variable) Equals(other Variable) bool {
-// 	if v.Type != other.Type {
-// 		return false
-// 	}
-// 	if v.Value != other.Value {
-// 		return false
-// 	}
-// 	if v.Name != other.Name {
-// 		return false
-// 	}
-// 	if !reflect.DeepEqual(v.Position, other.Position) {
-// 		return false
-// 	}
-// 	return true
-// }
-
 func (a *Variable) Accept(v Visitor) {
 	v.VisitVariable(a)
 }
@@ -53,16 +37,6 @@ func NewAssignment(identifier *Identifier, value Expression) *Assignment {
 		Value:      value,
 	}
 }
-
-// func (v *Assignemnt) Equals(other Assignemnt) bool {
-// 	if v.Value != other.Value {
-// 		return false
-// 	}
-// 	if !v.Identifier.Equals(other.Identifier) {
-// 		return false
-// 	}
-// 	return false
-// }
 
 func (a *Assignment) Accept(v Visitor) {
 	v.VisitAssignement(a)

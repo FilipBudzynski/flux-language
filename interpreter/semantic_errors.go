@@ -49,6 +49,7 @@ const (
 	INVALID_WHILE_CONDITION                  = "expected boolean expression as condition but got: %v"
 	ERROR_ARGUMENTS_NOT_FOUND                = "Last result is not an array of arguments: %v"
 	INVALID_ARGUMENTS_TYPE                   = "invalid arguments type: %v"
+    WRONG_ARGUMENT_TYPE                      = "cannot use: %v as arguments of type: %v"
 	MAX_RECURSION_DEPTH_EXCEEDED             = "maximum recursion depth exceeded for function: %s"
 	EXPECTED_BOOLEAN_EXPRESSION              = "expected boolean expression but got: %v"
 )

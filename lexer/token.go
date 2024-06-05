@@ -139,7 +139,6 @@ const (
 	SWITCH
 	DEFAULT
 	AS
-	PRINT
 	RETURN
 	DECLARE
 	ASSIGN
@@ -149,11 +148,7 @@ const (
 	LEFT_PARENTHESIS
 	RIGHT_PARENTHESIS
 	COMMA
-	ERROR
-	WARNING
-	STX
 	ETX
-	EOL
 	COMMENT
 	UNDEFINED
 )
@@ -188,7 +183,6 @@ var tokenTypeNames = [...]string{
 	"SWITCH",
 	"DEFAULT",
 	"AS",
-	"PRINT",
 	"RETURN",
 	"DECLARE",
 	"ASSIGN",
@@ -198,11 +192,7 @@ var tokenTypeNames = [...]string{
 	"LEFT_PARENTHESIS",
 	"RIGHT_PARENTHESIS",
 	"COMMA",
-	"ERROR",
-	"WARNING",
-	"STX",
 	"ETX",
-	"EOL",
 	"COMMENT",
 	"UNDEFINED",
 }

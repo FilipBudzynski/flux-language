@@ -11,7 +11,7 @@ import (
 	"tkom/shared"
 )
 
-var MAX_RECURSION_DEPTH = 5
+const MAX_RECURSION_DEPTH = 5
 
 func TestVisitIntExpression(t *testing.T) {
 	visitor := NewCodeVisitor(MAX_RECURSION_DEPTH)
@@ -257,8 +257,8 @@ func TestCastExpression(t *testing.T) {
 		{name: "StringToFloat", initialValue: "10.5", initialType: shared.STRING, targetType: shared.FLOAT, expectedResult: 10.5, expectingPanic: false},
 		{name: "StringToFloatInvalid", initialValue: "abc", initialType: shared.STRING, targetType: shared.FLOAT, expectedResult: nil, expectingPanic: true},
 		{name: "StringToBoolTrue", initialValue: "true", initialType: shared.STRING, targetType: shared.BOOL, expectedResult: true, expectingPanic: false},
-		{name: "StringToBoolFalse", initialValue: "false", initialType: shared.STRING, targetType: shared.BOOL, expectedResult: false, expectingPanic: false},
-		{name: "StringToBoolInvalid", initialValue: "abc", initialType: shared.STRING, targetType: shared.BOOL, expectedResult: nil, expectingPanic: true},
+		{name: "StringToBoolFalse", initialValue: "", initialType: shared.STRING, targetType: shared.BOOL, expectedResult: false, expectingPanic: false},
+		{name: "StringToBoolInvalid", initialValue: "abc", initialType: shared.STRING, targetType: shared.BOOL, expectedResult: true, expectingPanic: false},
 		{name: "StringToString", initialValue: "hello", initialType: shared.STRING, targetType: shared.STRING, expectedResult: "hello", expectingPanic: false},
 	}
 
@@ -572,7 +572,7 @@ func TestReturningNestedBlocks(t *testing.T) {
 //	        a := 42
 //	    }
 //	}
-func TestVisitIfStatement_ConditionTrue(t *testing.T) {
+func TestVisitIfStatementConditionTrue(t *testing.T) {
 	condition := ast.NewBoolExpression(true, shared.NewPosition(1, 1))
 	block := &ast.Block{
 		Statements: []ast.Statement{
@@ -603,11 +603,14 @@ func TestVisitIfStatement_ConditionTrue(t *testing.T) {
 // TESTING CASE:
 //
 //	{
-//	    if ture {
-//	        a := 42
+//	    if false {
+//	        int b := 42
+//	    }
+//	    else {
+//	        string table := "stół z powyłamywanymi nogami"
 //	    }
 //	}
-func TestVisitIfStatement_ElseBlock(t *testing.T) {
+func TestVisitIfStatementElseBlock(t *testing.T) {
 	condition := &ast.BoolExpression{Value: false}
 	block := &ast.Block{
 		Statements: []ast.Statement{
@@ -1056,7 +1059,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.StringExpression{Value: "one"},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf("one")), shared.NewPosition(0, 0)).Error(),
+			expectedError: NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, shared.STRING, shared.INT), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "float type mismatch",
@@ -1065,7 +1068,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.FloatExpression{Value: 4.20},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf(4.20)), shared.NewPosition(0, 0)).Error(),
+			expectedError: NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, shared.FLOAT, shared.INT), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "bool type mismatch",
@@ -1074,7 +1077,7 @@ func TestParametersAndArguments(t *testing.T) {
 				&ast.BoolExpression{Value: true},
 				&ast.IntExpression{Value: 2},
 			},
-			expectedError: NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, shared.INT, reflect.TypeOf(true)), shared.NewPosition(0, 0)).Error(),
+			expectedError: NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, shared.BOOL, shared.INT), shared.NewPosition(0, 0)).Error(),
 		},
 		{
 			name:         "Wrong number of arguments",

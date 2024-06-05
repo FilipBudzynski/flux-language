@@ -3,8 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"tkom/ast"
 	"tkom/interpreter"
@@ -23,22 +25,27 @@ func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", r)
-			//os.Exit(1)
 		}
 	}()
 
 	if len(os.Args) < 2 {
-		fmt.Println("Missing parameter, provide file name or use piped input!")
+		fmt.Println("Missing parameter, provide file name and arguments or use '-' to run from stream")
 		return
 	}
 
 	var program *ast.Program
 	var err error
 
-	if len(os.Args) == 2 && os.Args[1] == "-" {
+	if len(os.Args) >= 2 && os.Args[1] == "-" {
 		program, err = parseProgramFromStdin()
 	} else {
 		fileName := os.Args[1]
+		ext := filepath.Ext(fileName)
+		if ext != ".fl" {
+			log.Fatal("File must have '.fl' extension")
+			os.Exit(1)
+		}
+
 		program, err = parseProgramFromFile(fileName)
 	}
 
@@ -75,7 +82,13 @@ func parseProgramFromFile(fileName string) (*ast.Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if r := recover(); r != nil {
+			file.Close()
+			fmt.Fprintf(os.Stderr, "%v\n", r)
+			os.Exit(1)
+		}
+	}()
 
 	reader := bufio.NewReader(file)
 	return parseProgram(reader)
@@ -87,18 +100,12 @@ func parseProgramFromStdin() (*ast.Program, error) {
 }
 
 func parseProgram(reader *bufio.Reader) (*ast.Program, error) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", r)
-			os.Exit(1)
-		}
-	}()
 	source, _ := lexer.NewScanner(reader)
 	lex := lexer.NewLexer(source, IDENTIFIERLIMIT, STRING_LIMIT, INT_LIMIT)
 	errorHandler := func(err error) {
 		panic(err)
 	}
-    lex.ErrorHandler = errorHandler
+	lex.ErrorHandler = errorHandler
 	parser := parser.NewParser(lex, errorHandler)
 
 	program := parser.ParseProgram()

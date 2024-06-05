@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"reflect"
 	"tkom/shared"
 )
 
@@ -94,7 +95,7 @@ func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnno
 func (s *Scope) SetValue(name string, value any) error {
 	v := s.InScope(name)
 	if v == nil {
-		return NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, name), shared.NewPosition(999, 999))
+		return fmt.Errorf(UNDEFINED_VARIABLE, name)
 	}
 
 	err := s.CheckVariableType(v, value)
@@ -107,24 +108,19 @@ func (s *Scope) SetValue(name string, value any) error {
 }
 
 func (s *Scope) CheckVariableType(variable *ScopeVariable, value any) error {
-	switch variable.Type {
-	case shared.INT:
-		if _, ok := value.(int); !ok {
-			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, value, variable.Type), variable.Position)
-		}
-	case shared.BOOL:
-		if _, ok := value.(bool); !ok {
-			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, value, variable.Type), variable.Position)
-		}
-	case shared.FLOAT:
-		if _, ok := value.(float64); !ok {
-			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, value, variable.Type), variable.Position)
-		}
-	case shared.STRING:
-		if _, ok := value.(string); !ok {
-			return NewSemanticError(fmt.Sprintf(TYPE_MISMATCH, value, variable.Type), variable.Position)
+	typeCheckers := map[shared.TypeAnnotation]func(any) bool{
+		shared.INT:    func(v any) bool { _, ok := v.(int); return ok },
+		shared.BOOL:   func(v any) bool { _, ok := v.(bool); return ok },
+		shared.FLOAT:  func(v any) bool { _, ok := v.(float64); return ok },
+		shared.STRING: func(v any) bool { _, ok := v.(string); return ok },
+	}
+
+	if checkFunc, found := typeCheckers[variable.Type]; found {
+		if !checkFunc(value) {
+			return fmt.Errorf(TYPE_MISMATCH, variable.Type, reflect.TypeOf(value))
 		}
 	}
+
 	return nil
 }
 

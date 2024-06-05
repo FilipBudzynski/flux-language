@@ -86,7 +86,11 @@ func (v *CodeVisitor) tryCastToBool(value any) (bool, error) {
 	case bool:
 		return val, nil
 	case string:
-		return strconv.ParseBool(val)
+		if value == "" {
+			return false, nil
+		} else {
+			return true, nil
+		}
 	default:
 		return false, fmt.Errorf("invalid cast expression: %v to bool", value)
 	}
@@ -119,16 +123,6 @@ func (v *CodeVisitor) checkType(value any, expectedType shared.TypeAnnotation, p
 		return fmt.Errorf("unknown type: %v", expectedType)
 	}
 	return nil
-}
-
-// helper function for getting the return type of the current function
-func (v *CodeVisitor) getCurrentFunctionReturnType() shared.TypeAnnotation {
-	for i := len(v.ScopeStack.elem) - 1; i >= 0; i-- {
-		if v.ScopeStack.elem[i].ReturnType != nil {
-			return *v.ScopeStack.elem[i].ReturnType
-		}
-	}
-	return shared.VOID
 }
 
 func (v *CodeVisitor) VisitIntExpression(intExp *ast.IntExpression) {
@@ -200,29 +194,35 @@ func (v *CodeVisitor) VisitCastExpression(castExp *ast.CastExpression) {
 
 func (v *CodeVisitor) VisitMultiplyExpression(mulExp *ast.MultiplyExpression) {
 	mulExp.LeftExpression.Accept(v)
-	leftResult := v.LastResult
+	leftValue := v.LastResult
 
 	mulExp.RightExpression.Accept(v)
-	rightResult := v.LastResult
+	rightValue := v.LastResult
 
-	switch leftVal := leftResult.(type) {
-	case int:
-		switch rigthVal := rightResult.(type) {
+	performMultiplication := func(left, right any) (result any, valid bool) {
+		switch l := left.(type) {
 		case int:
-			v.LastResult = leftVal * rigthVal
+			switch r := right.(type) {
+			case int:
+				return l * r, true
+			case float64:
+				return float64(l) * r, true
+			}
+		case float64:
+			switch r := right.(type) {
+			case float64:
+				return l * r, true
+			case int:
+				return l * float64(r), true
+			}
+		}
+		return nil, false
+	}
 
-		case float64:
-			v.LastResult = float64(leftVal) * rigthVal
-		}
-	case float64:
-		switch rightVal := rightResult.(type) {
-		case float64:
-			v.LastResult = leftVal * rightVal
-		case int:
-			v.LastResult = leftVal * float64(rightVal)
-		}
-	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_MULTIPLY_EXPRESSION, leftResult, rightResult), mulExp.Position))
+	if result, valid := performMultiplication(leftValue, rightValue); valid {
+		v.LastResult = result
+	} else {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_MULTIPLY_EXPRESSION, reflect.TypeOf(leftValue), reflect.TypeOf(rightValue)), mulExp.Position))
 	}
 }
 
@@ -240,21 +240,30 @@ func (v *CodeVisitor) VisitDivideExpression(divExp *ast.DivideExpression) {
 		panic(NewSemanticError("Division by zero", divExp.Position))
 	}
 
-	switch leftResult.(type) {
-	case int:
-		switch rightResult.(type) {
+	performDivision := func(left, right any) (result any, valid bool) {
+		switch l := left.(type) {
 		case int:
-			v.LastResult = leftResult.(int) / rightResult.(int)
-		}
-	case float64:
-		switch rightResult.(type) {
+			if r, ok := right.(int); ok {
+				return l / r, true
+			}
+			if r, ok := right.(float64); ok {
+				return float64(l) / r, true
+			}
 		case float64:
-			v.LastResult = leftResult.(float64) / rightResult.(float64)
-		case int:
-			v.LastResult = leftResult.(float64) / float64(rightResult.(int))
+			switch r := right.(type) {
+			case float64:
+				return l / r, true
+			case int:
+				return l / float64(r), true
+			}
 		}
-	default:
-		panic(NewSemanticError(fmt.Sprintf(INVALID_DIVISION_EXPRESSION, leftResult, rightResult), divExp.Position))
+		return nil, false
+	}
+
+	if result, valid := performDivision(leftResult, rightResult); valid {
+		v.LastResult = result
+	} else {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_DIVISION_EXPRESSION, reflect.TypeOf(leftResult), reflect.TypeOf(rightResult)), divExp.Position))
 	}
 }
 
@@ -556,7 +565,7 @@ func (v *CodeVisitor) VisitAssignement(assignment *ast.Assignment) {
 
 	err := v.CurrentScope.SetValue(assignment.Identifier.Name, value)
 	if err != nil {
-		panic(err)
+		panic(NewSemanticError(err.Error(), assignment.Identifier.Position))
 	}
 
 	v.LastResult = nil
@@ -623,12 +632,6 @@ func (v *CodeVisitor) VisitReturnStatement(returnStmt *ast.ReturnStatement) {
 		v.LastResult = nil
 	}
 
-	expectedReturnType := v.getCurrentFunctionReturnType()
-	actualReturnType := v.determineType(v.LastResult)
-
-	if expectedReturnType != actualReturnType {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_RETURN_TYPE, actualReturnType, expectedReturnType), returnStmt.Value.GetPosition()))
-	}
 	v.ReturnFlag = true
 }
 
@@ -692,37 +695,39 @@ func (v *CodeVisitor) VisitFunctionCall(fc *ast.FunctionCall) {
 	v.CallStack.Push(fc.Name)
 	defer v.CallStack.Pop(fc.Name)
 
-	values := []any{}
-	for _, arg := range fc.Arguments {
-		arg.Accept(v)
-		values = append(values, v.LastResult)
+	if len(fc.Arguments) != functionDef.GetParametersLen() && !functionDef.IsVariadic() {
+		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fc.Name, functionDef.GetParametersLen(), len(fc.Arguments)), fc.Position))
 	}
-	v.LastResult = values
+
+	v.LastResult = fc.Arguments
 
 	functionDef.Accept(v)
 }
 
 func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
-	if _, ok := v.LastResult.([]any); !ok {
+	if _, ok := v.LastResult.([]ast.Expression); !ok {
 		panic(NewSemanticError(fmt.Sprintf(ERROR_ARGUMENTS_NOT_FOUND, reflect.TypeOf(v.LastResult)), fd.Position))
 	}
-	if len(v.LastResult.([]any)) != len(fd.Parameters) {
-		panic(NewSemanticError(fmt.Sprintf(WRONG_NUMBER_OF_ARGUMENTS, fd.Name, len(fd.Parameters), len(v.LastResult.([]any))), fd.Position))
+	args := v.LastResult.([]ast.Expression)
+
+	values := []any{}
+	for _, arg := range args {
+		arg.Accept(v)
+		values = append(values, v.LastResult)
 	}
-	args := v.LastResult.([]any)
 
 	newScope := NewScope(v.CurrentScope, &fd.Type)
 	v.ScopeStack.Push(newScope)
 	v.CurrentScope = newScope
 
 	for i, param := range fd.Parameters {
-
-		argumentValue := args[i]
-		err := v.checkType(argumentValue, param.Type, param.Position)
+		argValue := values[i]
+		argType := v.determineType(argValue)
+		err := v.checkType(argValue, param.Type, args[i].GetPosition())
 		if err != nil {
-			panic(err)
+			panic(NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, argType, param.Type), args[i].GetPosition()))
 		}
-		err = v.CurrentScope.AddVariable(param.Name, argumentValue, param.Type, param.Position)
+		err = v.CurrentScope.AddVariable(param.Name, argValue, param.Type, param.Position)
 		if err != nil {
 			panic(err)
 		}
@@ -741,6 +746,10 @@ func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
 	v.CurrentScope = currScope.Parent
 
 	if v.ReturnFlag {
+		returnType := v.determineType(v.LastResult)
+		if returnType != fd.Type {
+			panic(NewSemanticError(fmt.Sprintf(INVALID_RETURN_TYPE, returnType, fd.Type), fd.Position))
+		}
 		v.ReturnFlag = false
 	} else {
 		v.LastResult = nil
@@ -748,11 +757,23 @@ func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
 }
 
 func (v *CodeVisitor) VisitEmbeddedFunction(ef *ast.EmbeddedFunction) {
-	if args, ok := v.LastResult.([]any); ok {
-		if !ef.Variadic && len(args) != len(ef.Parameters) {
-			panic(fmt.Errorf(WRONG_NUMBER_OF_ARGUMENTS, ef.Name, len(ef.Parameters), len(args)))
+	if args, ok := v.LastResult.([]ast.Expression); ok {
+
+		values := []any{}
+		for _, arg := range args {
+			arg.Accept(v)
+			values = append(values, v.LastResult)
 		}
-		result := ef.Func(args...)
+
+		if !ef.Variadic {
+			for i, val := range values {
+				if v.determineType(val) != ef.Parameters[i] {
+					panic(NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, v.determineType(val), ef.Parameters[i]), args[i].GetPosition()))
+				}
+			}
+		}
+
+		result := ef.Func(values...)
 		v.LastResult = result
 	} else {
 		panic(fmt.Errorf(INVALID_ARGUMENTS_TYPE, reflect.TypeOf(v.LastResult)))
@@ -813,6 +834,9 @@ func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
 func (v *CodeVisitor) VisitSwitchCase(sc *ast.SwitchCase) {
 	sc.Condition.Accept(v)
 	condition := v.LastResult
+	if _, ok := condition.(bool); !ok {
+		panic(NewSemanticError(fmt.Sprintf(EXPECTED_BOOLEAN_EXPRESSION, reflect.TypeOf(condition)), sc.Condition.GetPosition()))
+	}
 
 	if condition.(bool) {
 		sc.OutputExpression.Accept(v)

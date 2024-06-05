@@ -135,7 +135,7 @@ func TestParseFunctionDefinitions(t *testing.T) {
 	}
 }
 
-func TestParseExpressionIdentifierOnly(t *testing.T) {
+func TestParseExpressionIdentifierAsTerm(t *testing.T) {
 	input := "identifier1"
 	expected := NewIdentifier("identifier1", shared.NewPosition(1, 1))
 
@@ -322,7 +322,7 @@ func TestParseNegateExpression(t *testing.T) {
 	}
 }
 
-func TestParseVariableDeclarations(t *testing.T) {
+func TestParseVariableDeclarationsWithTerm(t *testing.T) {
 	testCases := []struct {
 		expected *Variable
 		input    string
@@ -721,7 +721,7 @@ func TestParseProgram(t *testing.T) {
 	}
 }
 
-func TestParseProgramInt(t *testing.T) {
+func TestParseProgramFunctionWithType(t *testing.T) {
 	input := `main() int {
     int a := 10
     int b := second()
@@ -747,97 +747,5 @@ func TestParseProgramInt(t *testing.T) {
 
 	if !reflect.DeepEqual(program, expected) {
 		t.Errorf("Program not parsed correctly, expected: %v, got: %v", expected, program)
-	}
-}
-
-func TestFunctionsEquals(t *testing.T) {
-	funA := NewFunctionDefinition(
-		"main",
-		nil,
-		shared.VOID,
-		NewBlock([]Statement{
-			NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
-			NewIfStatement(
-				NewGreaterThanExpression(
-					NewIdentifier("a", shared.NewPosition(6, 8)),
-					NewIdentifier("b", shared.NewPosition(6, 12)),
-					shared.NewPosition(5, 10),
-				),
-				NewBlock([]Statement{NewAssignment(NewIdentifier("a", shared.NewPosition(7, 9)), NewIntExpression(0, shared.NewPosition(7, 13)))}),
-				NewBlock([]Statement{NewAssignment(NewIdentifier("b", shared.NewPosition(10, 9)), NewIntExpression(0, shared.NewPosition(10, 13)))}),
-			),
-		}),
-		shared.NewPosition(1, 1),
-	)
-
-	funB := NewFunctionDefinition(
-		"main",
-		nil,
-		shared.VOID,
-		NewBlock([]Statement{
-			NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
-			NewIfStatement(
-				NewGreaterThanExpression(
-					NewIdentifier("a", shared.NewPosition(6, 8)),
-					NewIdentifier("b", shared.NewPosition(6, 12)),
-					shared.NewPosition(5, 10),
-				),
-				NewBlock([]Statement{NewAssignment(NewIdentifier("a", shared.NewPosition(7, 9)), NewIntExpression(0, shared.NewPosition(7, 13)))}),
-				NewBlock([]Statement{NewAssignment(NewIdentifier("b", shared.NewPosition(10, 9)), NewIntExpression(0, shared.NewPosition(10, 13)))}),
-			),
-		}),
-		shared.NewPosition(1, 1),
-	)
-
-	if !reflect.DeepEqual(funA, funB) {
-		t.Errorf("Functions are not equal, expected: %v, got: %v", funA, funB)
-	}
-}
-
-func TestProgramsEquals(t *testing.T) {
-	statements := []Statement{
-		NewVariable(shared.INT, "a", NewIntExpression(10, shared.NewPosition(1, 5)), shared.NewPosition(1, 5)),
-		NewVariable(
-			shared.INT,
-			"b",
-			NewFunctionCall("second", shared.NewPosition(3, 14), nil),
-			shared.NewPosition(3, 9),
-		),
-		NewAssignment(
-			NewIdentifier("a", shared.NewPosition(4, 5)),
-			NewSubstractExpression(
-				NewIdentifier("a", shared.NewPosition(4, 9)),
-				NewIdentifier("b", shared.NewPosition(4, 13)),
-				shared.NewPosition(4, 11),
-			),
-		),
-		NewIfStatement(
-			NewGreaterThanExpression(
-				NewIdentifier("a", shared.NewPosition(6, 8)),
-				NewIdentifier("b", shared.NewPosition(6, 12)),
-				shared.NewPosition(4, 11),
-			),
-			NewBlock([]Statement{NewAssignment(NewIdentifier("a", shared.NewPosition(7, 9)), NewIntExpression(0, shared.NewPosition(7, 13)))}),
-			NewBlock([]Statement{NewAssignment(NewIdentifier("b", shared.NewPosition(10, 9)), NewIntExpression(0, shared.NewPosition(10, 13)))}),
-		),
-	}
-
-	funDefsA := map[string]*FunctionDefinition{
-		"main": NewFunctionDefinition("main", nil, shared.VOID, NewBlock(statements), shared.NewPosition(1, 1)),
-	}
-
-	funDefsB := map[string]*FunctionDefinition{
-		"main": NewFunctionDefinition("main", nil, shared.VOID, NewBlock(statements), shared.NewPosition(1, 1)),
-	}
-
-	if !reflect.DeepEqual(funDefsA["main"], funDefsB["main"]) {
-		t.Errorf("Programs are not equal, expected: %v, got: %v", funDefsA, funDefsB)
-	}
-
-	programA := NewProgram(funDefsA)
-	programB := NewProgram(funDefsB)
-
-	if !reflect.DeepEqual(programA, programB) {
-		t.Errorf("Programs are not equal, expected: %v, got: %v", programA, programB)
 	}
 }

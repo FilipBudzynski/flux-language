@@ -233,7 +233,7 @@ func (v *CodeVisitor) VisitDivideExpression(divExp *ast.DivideExpression) {
 	divExp.RightExpression.Accept(v)
 	rightResult := v.LastResult
 
-	// check for zero as
+	// check for zero
 	if right, ok := rightResult.(int); ok && right == 0 {
 		panic(NewSemanticError("Division by zero", divExp.Position))
 	} else if right, ok := rightResult.(float64); ok && right == 0.0 {
@@ -658,7 +658,7 @@ func (v *CodeVisitor) VisitWhileStatement(whileStmt *ast.WhileStatement) {
 
 	whileStmt.Condition.Accept(v)
 
-    if _, ok := v.LastResult.(bool); !ok {
+	if _, ok := v.LastResult.(bool); !ok {
 		panic(NewSemanticError(fmt.Sprintf(INVALID_WHILE_CONDITION, reflect.TypeOf(v.LastResult)), whileStmt.Condition.GetPosition()))
 	}
 

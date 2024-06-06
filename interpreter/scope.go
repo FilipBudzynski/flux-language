@@ -39,24 +39,15 @@ func (s *Stack) Size() int {
 	return len(s.elem)
 }
 
-type ScopeVariable struct {
-	Value any
-	Type  shared.TypeAnnotation
-}
-
 type Scope struct {
-	Parent *Scope
-	// variables  map[string]*ScopeVariable
-	variables  map[string]any
-	ReturnType *shared.TypeAnnotation
+	Parent    *Scope
+	variables map[string]any
 }
 
 func NewScope(parent *Scope, returnType *shared.TypeAnnotation) *Scope {
 	return &Scope{
-		Parent: parent,
-		// variables:  map[string]*ScopeVariable{},
-		variables:  map[string]any{},
-		ReturnType: returnType,
+		Parent:    parent,
+		variables: map[string]any{},
 	}
 }
 

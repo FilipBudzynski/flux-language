@@ -649,7 +649,6 @@ func (p *Parser) parseSwitchVariables() (variables []*Variable) {
 }
 
 // switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) ], "{", switch_case, { ",", switch_case "}" ;
-// TODO: przeciez tutaj expression nie ma najmniejszego sensu jezeli nie mamy implicit porównań
 func (p *Parser) parseSwitchStatement() *SwitchStatement {
 	if p.token.Type != lex.SWITCH {
 		return nil

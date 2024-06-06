@@ -13,7 +13,7 @@ Filip Budzyński, numer albumu: 319021
 7. [Przykłady dopuszczalnych konstrukcji i semantyka](#przykłady-dopuszczalnych-konstrukcji-i-semantyka)
 8. [Obsługa błędów i przykłady](#obsługa-błędów-i-przykłady)
 9. [Rozróżniane Tokeny](#rozróżniane-tokeny)
-10. [Instalacja](#instalacja)
+10. [Uruchomienie](#uruchomienie)
 11. [Konwersja typów](#konwersja-typów-i-kombinacja-typów-akceptowalna-dla-operatorów-wieloargumentowych-i-funkcji-wbudowanych)
 12. [Zasady przekazywania zmiennych do funkcji](#zasady-przekazywania-zmiennych-do-funkcji)
 13. [Realizacja modułów](#realizacja-modułów)
@@ -310,18 +310,10 @@ if nazwa == "Ala ma kota" {
 Instrukcja pętli while
 
 ```go
-int i := 0
-while i < 10{
-    print(i)
-    i = i + 1
-}
-
-main(){
-    int num := 10
-    while num > 0 {
-        print(num)
-        num = num - i
-    }
+int num := 10
+while num > 0 {
+    print(num)
+    num = num - i
 }
 ```
 
@@ -336,7 +328,7 @@ circleArea(r int) float    {
 
 main(){
     int r := 2
-    int a := circleArea(r)
+    float a := circleArea(r)
     print(a)
 }
 # output: 12.56636
@@ -372,7 +364,7 @@ string c := a as string
 print(c)        # "5"
 
 int b := 0
-bool d = b as bool   # "false"
+bool d := b as bool   # "false"
 ```
 
 ---
@@ -548,7 +540,7 @@ error [2, 12]: invalid return type: int, expected: float
 
 ---
 
-Błąd w konstrukcji switch:
+Błąd w konstrukcji switch, brak przypadku dla zakresu:
 
 ```go
 kelvinToCelcius(temp int) int {
@@ -737,6 +729,8 @@ Struktura tokenu
    - **`CONST_FLOAT`**
    - **`CONST_STRING`**
    - **`CONST_BOOL`**
+   - **`CONST_TRUE`**
+   - **`CONST_FALSE`**
 9. Inne:
    - **`ETX`** (end of text)
    - **`UNDEFINED`**
@@ -744,7 +738,7 @@ Struktura tokenu
 
 ---
 
-## Instalacja
+## Uruchomienie
 
 Aby uruchomić program napisany w języku **flux** należy:
 

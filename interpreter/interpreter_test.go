@@ -329,13 +329,14 @@ func TestVisitVariable(t *testing.T) {
 		},
 	)
 	expected := "some string"
-	variable := visitor.CurrentScope.InScope("a")
+	_, variable := visitor.CurrentScope.InScope("a")
+	variableType := visitor.DetermineType(variable)
 
-	if variable.Type != shared.STRING {
-		t.Errorf("expected variable type to be %v, got %v", shared.STRING, variable.Type)
+	if variableType != shared.STRING {
+		t.Errorf("expected variable type to be %v, got %v", shared.STRING, variableType)
 	}
-	if variable.Value != expected {
-		t.Errorf("expected variable value to be %v, got %v", expected, variable.Value)
+	if variable != expected {
+		t.Errorf("expected variable value to be %v, got %v", expected, variable)
 	}
 }
 
@@ -671,8 +672,8 @@ func TestScopeVariables(t *testing.T) {
 		t.Errorf("expected variable y to be defined in current scope, but it was not found")
 	}
 
-	if variable.Value != 42 {
-		t.Errorf("expected variable y's value to be 42, got %v", variable.Value)
+	if variable != 42 {
+		t.Errorf("expected variable y's value to be 42, got %v", variable)
 	}
 
 	if visitor.LastResult != 42 {
@@ -871,11 +872,11 @@ func TestVisitAsignmentWithFunctionCall(t *testing.T) {
 		},
 	)
 
-	if variable := visitor.CurrentScope.InScope("c"); variable == nil {
+	if _ ,variable := visitor.CurrentScope.InScope("c"); variable == nil {
 		t.Errorf("variable not in scope but should be, got: %v", variable)
 	}
-	if variable := visitor.CurrentScope.InScope("c"); variable.Value != 3 {
-		t.Errorf("expected variable value to be %v, got %v", 3, variable.Value)
+	if _, variable := visitor.CurrentScope.InScope("c"); variable != 3 {
+		t.Errorf("expected variable value to be %v, got %v", 3, variable)
 	}
 }
 
@@ -994,11 +995,11 @@ func TestVisitNestedFunctionCallWithReturn(t *testing.T) {
 	if visitor.LastResult != nil {
 		t.Errorf("expected lastResult to be %v, got %v", nil, visitor.LastResult)
 	}
-	if variable := visitor.CurrentScope.InScope("c"); variable == nil {
+	if _, variable := visitor.CurrentScope.InScope("c"); variable == nil {
 		t.Errorf("variable not in scope but should be, got: %v", variable)
 	}
-	if variable := visitor.CurrentScope.InScope("c"); variable.Value != 3 {
-		t.Errorf("expected variable value to be %v, got %v", 3, variable.Value)
+	if _, variable := visitor.CurrentScope.InScope("c"); variable != 3 {
+		t.Errorf("expected variable value to be %v, got %v", 3, variable)
 	}
 }
 
@@ -1564,7 +1565,7 @@ func TestSwitchWithBlock(t *testing.T) {
 	if visitor.ReturnFlag {
 		t.Errorf("Expected returnFlag to be false, got: %v", visitor.ReturnFlag)
 	}
-	if visitor.CurrentScope.InScope("i").Value != 20 {
+    if _, value := visitor.CurrentScope.InScope("i"); value != 20 {
 		t.Errorf("Expected lastResult to be 20, got: %v", visitor.LastResult)
 	}
 }
@@ -1690,8 +1691,8 @@ func TestVisitWhileStatement(t *testing.T) {
 	visitor.CurrentScope = newScope
 	visitor.VisitBlock(block)
 
-	if variable := visitor.CurrentScope.InScope("i"); variable.Value != 5 {
-		t.Errorf("Expected variable 'i' in parent scope to be 4, but is %v", variable.Value)
+	if _, variable := visitor.CurrentScope.InScope("i"); variable != 5 {
+		t.Errorf("Expected variable 'i' in parent scope to be 4, but is %v", variable)
 	}
 }
 
@@ -1746,8 +1747,8 @@ func TestVisitWhileStatementWithReturn(t *testing.T) {
 	if !visitor.ReturnFlag {
 		t.Errorf("Expected return flag to be set")
 	}
-	if variable := visitor.CurrentScope.InScope("i"); variable.Value != 3 {
-		t.Errorf("Expected variable 'i' in parent scope to be 3, but is %v", variable.Value)
+	if _, variable := visitor.CurrentScope.InScope("i"); variable != 3 {
+		t.Errorf("Expected variable 'i' in parent scope to be 3, but is %v", variable)
 	}
 }
 

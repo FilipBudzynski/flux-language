@@ -146,7 +146,7 @@ func (v *CodeVisitor) VisitIdentifier(idExp *ast.Identifier) {
 	if err != nil {
 		panic(NewSemanticError(err.Error(), idExp.Position))
 	}
-	v.LastResult = sc.Value
+	v.LastResult = sc
 }
 
 func (v *CodeVisitor) VisitNegateExpression(negateExp *ast.NegateExpression) {
@@ -599,7 +599,7 @@ func (v *CodeVisitor) VisitBlock(block *ast.Block) {
 
 func (v *CodeVisitor) VisitIfStatement(ifStmt *ast.IfStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
-	v.ScopeStack.Push(newScope)
+	v.ScopeStack.Push(v.CurrentScope)
 	v.CurrentScope = newScope
 
 	ifStmt.Condition.Accept(v)
@@ -614,11 +614,11 @@ func (v *CodeVisitor) VisitIfStatement(ifStmt *ast.IfStatement) {
 		ifStmt.ElseInstructionsBlock.Accept(v)
 	}
 
-	currentScope, err := v.ScopeStack.Pop()
+	prevScope, err := v.ScopeStack.Pop()
 	if err != nil {
 		panic(err)
 	}
-	v.CurrentScope = currentScope.Parent
+	v.CurrentScope = prevScope
 
 	if !v.ReturnFlag {
 		v.LastResult = nil
@@ -636,7 +636,7 @@ func (v *CodeVisitor) VisitReturnStatement(returnStmt *ast.ReturnStatement) {
 }
 
 // helper function for determining the type of a value for return
-func (v *CodeVisitor) determineType(value any) shared.TypeAnnotation {
+func (v *CodeVisitor) DetermineType(value any) shared.TypeAnnotation {
 	switch value.(type) {
 	case int:
 		return shared.INT
@@ -653,13 +653,13 @@ func (v *CodeVisitor) determineType(value any) shared.TypeAnnotation {
 
 func (v *CodeVisitor) VisitWhileStatement(whileStmt *ast.WhileStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
-	v.ScopeStack.Push(newScope)
+	v.ScopeStack.Push(v.CurrentScope)
 	v.CurrentScope = newScope
 
 	whileStmt.Condition.Accept(v)
 
-	if ok := v.LastResult.(bool); !ok {
-		panic(NewSemanticError(fmt.Sprintf(INVALID_WHILE_CONDITION, reflect.TypeOf(v.LastResult)), shared.NewPosition(0, 0)))
+    if _, ok := v.LastResult.(bool); !ok {
+		panic(NewSemanticError(fmt.Sprintf(INVALID_WHILE_CONDITION, reflect.TypeOf(v.LastResult)), whileStmt.Condition.GetPosition()))
 	}
 
 	for v.LastResult.(bool) {
@@ -670,11 +670,11 @@ func (v *CodeVisitor) VisitWhileStatement(whileStmt *ast.WhileStatement) {
 		whileStmt.Condition.Accept(v)
 	}
 
-	currentScope, err := v.ScopeStack.Pop()
+	prevScope, err := v.ScopeStack.Pop()
 	if err != nil {
 		panic(err)
 	}
-	v.CurrentScope = currentScope.Parent
+	v.CurrentScope = prevScope
 
 	if !v.ReturnFlag {
 		// clear the last result if no return flag
@@ -716,13 +716,13 @@ func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
 		values = append(values, v.LastResult)
 	}
 
-	newScope := NewScope(v.CurrentScope, &fd.Type)
-	v.ScopeStack.Push(newScope)
+	newScope := NewScope(nil, &fd.Type)
+	v.ScopeStack.Push(v.CurrentScope)
 	v.CurrentScope = newScope
 
 	for i, param := range fd.Parameters {
 		argValue := values[i]
-		argType := v.determineType(argValue)
+		argType := v.DetermineType(argValue)
 		err := v.checkType(argValue, param.Type, args[i].GetPosition())
 		if err != nil {
 			panic(NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, argType, param.Type), args[i].GetPosition()))
@@ -743,10 +743,10 @@ func (v *CodeVisitor) VisitFunctionDefinition(fd *ast.FunctionDefinition) {
 	if err != nil {
 		panic(err)
 	}
-	v.CurrentScope = currScope.Parent
+	v.CurrentScope = currScope
 
 	if v.ReturnFlag {
-		returnType := v.determineType(v.LastResult)
+		returnType := v.DetermineType(v.LastResult)
 		if returnType != fd.Type {
 			panic(NewSemanticError(fmt.Sprintf(INVALID_RETURN_TYPE, returnType, fd.Type), fd.Position))
 		}
@@ -767,8 +767,8 @@ func (v *CodeVisitor) VisitEmbeddedFunction(ef *ast.EmbeddedFunction) {
 
 		if !ef.Variadic {
 			for i, val := range values {
-				if v.determineType(val) != ef.Parameters[i] {
-					panic(NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, v.determineType(val), ef.Parameters[i]), args[i].GetPosition()))
+				if v.DetermineType(val) != ef.Parameters[i] {
+					panic(NewSemanticError(fmt.Sprintf(WRONG_ARGUMENT_TYPE, v.DetermineType(val), ef.Parameters[i]), args[i].GetPosition()))
 				}
 			}
 		}
@@ -782,7 +782,7 @@ func (v *CodeVisitor) VisitEmbeddedFunction(ef *ast.EmbeddedFunction) {
 
 func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
 	newScope := NewScope(v.CurrentScope, nil)
-	v.ScopeStack.Push(newScope)
+	v.ScopeStack.Push(v.CurrentScope)
 	v.CurrentScope = newScope
 
 	for _, variable := range s.Variables {
@@ -816,11 +816,11 @@ func (v *CodeVisitor) VisitSwitchStatement(s *ast.SwitchStatement) {
 		defaultCase.Accept(v)
 	}
 
-	currentScope, err := v.ScopeStack.Pop()
+	prevScope, err := v.ScopeStack.Pop()
 	if err != nil {
 		panic(err)
 	}
-	v.CurrentScope = currentScope.Parent
+	v.CurrentScope = prevScope
 
 	// clear the switch flag
 	v.SwitchEndFlag = false

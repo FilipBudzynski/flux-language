@@ -40,50 +40,44 @@ func (s *Stack) Size() int {
 }
 
 type ScopeVariable struct {
-	Value    any
-	Type     shared.TypeAnnotation
-	Position shared.Position
+	Value any
+	Type  shared.TypeAnnotation
 }
 
 type Scope struct {
-	Parent     *Scope
-	variables  map[string]*ScopeVariable
+	Parent *Scope
+	// variables  map[string]*ScopeVariable
+	variables  map[string]any
 	ReturnType *shared.TypeAnnotation
 }
 
 func NewScope(parent *Scope, returnType *shared.TypeAnnotation) *Scope {
 	return &Scope{
-		Parent:     parent,
-		variables:  map[string]*ScopeVariable{},
+		Parent: parent,
+		// variables:  map[string]*ScopeVariable{},
+		variables:  map[string]any{},
 		ReturnType: returnType,
 	}
 }
 
-func (s *Scope) InScope(name string) *ScopeVariable {
-	currentScope := s
-	for currentScope != nil {
-		if v, ok := currentScope.variables[name]; ok {
-			return v
-		}
-		if currentScope.ReturnType != nil {
-			break
-		}
-		currentScope = currentScope.Parent
+func (s *Scope) InScope(name string) (*Scope, any) {
+	if v, ok := s.variables[name]; ok {
+		return s, v
 	}
-	return nil
+
+	if s.Parent != nil {
+		return s.Parent.InScope(name)
+	}
+
+	return s, nil
 }
 
 func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnnotation, position shared.Position) error {
-	if v, ok := s.variables[name]; ok {
-		return NewSemanticError(fmt.Sprintf(REDECLARED_VARIABLE, name), v.Position)
-	}
-	scopeVariable := &ScopeVariable{
-		Value:    value,
-		Type:     variableType,
-		Position: position,
+	if _, ok := s.variables[name]; ok {
+		return NewSemanticError(fmt.Sprintf(REDECLARED_VARIABLE, name), position)
 	}
 
-	s.variables[name] = scopeVariable
+	s.variables[name] = value
 	return nil
 }
 
@@ -93,7 +87,7 @@ func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnno
 //
 // If variable type doesn't match with value type, returns a TYPE_MISMATCH error
 func (s *Scope) SetValue(name string, value any) error {
-	v := s.InScope(name)
+	sc, v := s.InScope(name)
 	if v == nil {
 		return fmt.Errorf(UNDEFINED_VARIABLE, name)
 	}
@@ -102,38 +96,30 @@ func (s *Scope) SetValue(name string, value any) error {
 	if err != nil {
 		return err
 	}
-	v.Value = value
+	sc.variables[name] = value
 
 	return nil
 }
 
-func (s *Scope) CheckVariableType(variable *ScopeVariable, value any) error {
-	typeCheckers := map[shared.TypeAnnotation]func(any) bool{
-		shared.INT:    func(v any) bool { _, ok := v.(int); return ok },
-		shared.BOOL:   func(v any) bool { _, ok := v.(bool); return ok },
-		shared.FLOAT:  func(v any) bool { _, ok := v.(float64); return ok },
-		shared.STRING: func(v any) bool { _, ok := v.(string); return ok },
+func (s *Scope) CheckVariableType(variable, value any) error {
+	typeCheckers := map[reflect.Type]func(any) bool{
+		reflect.TypeOf(1):     func(v any) bool { _, ok := v.(int); return ok },
+		reflect.TypeOf(true):  func(v any) bool { _, ok := v.(bool); return ok },
+		reflect.TypeOf(0.0):   func(v any) bool { _, ok := v.(float64); return ok },
+		reflect.TypeOf("str"): func(v any) bool { _, ok := v.(string); return ok },
 	}
 
-	if checkFunc, found := typeCheckers[variable.Type]; found {
+	if checkFunc, found := typeCheckers[reflect.TypeOf(variable)]; found {
 		if !checkFunc(value) {
-			return fmt.Errorf(TYPE_MISMATCH, variable.Type, reflect.TypeOf(value))
+			return fmt.Errorf(TYPE_MISMATCH, reflect.TypeOf(variable), reflect.TypeOf(value))
 		}
 	}
 
 	return nil
 }
 
-func (s *Scope) GetValue(name string) (any, error) {
-	v := s.InScope(name)
-	if v == nil {
-		return nil, NewSemanticError(fmt.Sprintf(UNDEFINED_VARIABLE, name), shared.NewPosition(999, 999))
-	}
-	return v.Value, nil
-}
-
-func (s *Scope) GetVariable(name string) (*ScopeVariable, error) {
-	v := s.InScope(name)
+func (s *Scope) GetVariable(name string) (any, error) {
+	_, v := s.InScope(name)
 	if v == nil {
 		return nil, fmt.Errorf(fmt.Sprintf(UNDEFINED_VARIABLE, name))
 	}

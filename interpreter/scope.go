@@ -60,16 +60,16 @@ func NewScope(parent *Scope, returnType *shared.TypeAnnotation) *Scope {
 	}
 }
 
-func (s *Scope) InScope(name string) (*Scope, any) {
-	if v, ok := s.variables[name]; ok {
-		return s, v
+func (s *Scope) InScope(name string) map[string]any {
+	if _, ok := s.variables[name]; ok {
+		return s.variables
 	}
 
 	if s.Parent != nil {
 		return s.Parent.InScope(name)
 	}
 
-	return s, nil
+	return s.variables
 }
 
 func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnnotation, position shared.Position) error {
@@ -87,7 +87,8 @@ func (s *Scope) AddVariable(name string, value any, variableType shared.TypeAnno
 //
 // If variable type doesn't match with value type, returns a TYPE_MISMATCH error
 func (s *Scope) SetValue(name string, value any) error {
-	sc, v := s.InScope(name)
+	variables := s.InScope(name)
+	v := variables[name]
 	if v == nil {
 		return fmt.Errorf(UNDEFINED_VARIABLE, name)
 	}
@@ -96,7 +97,7 @@ func (s *Scope) SetValue(name string, value any) error {
 	if err != nil {
 		return err
 	}
-	sc.variables[name] = value
+	variables[name] = value
 
 	return nil
 }
@@ -119,7 +120,8 @@ func (s *Scope) CheckVariableType(variable, value any) error {
 }
 
 func (s *Scope) GetVariable(name string) (any, error) {
-	_, v := s.InScope(name)
+	variables := s.InScope(name)
+	v := variables[name]
 	if v == nil {
 		return nil, fmt.Errorf(fmt.Sprintf(UNDEFINED_VARIABLE, name))
 	}

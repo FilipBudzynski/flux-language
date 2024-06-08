@@ -1,11 +1,11 @@
-# Flux - Documentation
+# Flux 
 
-### General-purpose programming language with switch - matching patterns instruction.
+### Compiler and Interpreter for general-purpose programming language with switch - matching patterns instruction.
 
 author: Filip Budzyński
 
-Implementation of all project elements written in **Golang**,
-including Reader, Lexer, Parser and Interpreter.
+Implementation of all elements in the project written in **Golang**,
+including **Reader**, **Lexer**, **Parser** and **Interpreter**.
 
 1. [Description of functionality](#description-of-functionality)
 2. [Allowed data types](#allowed-data-types)

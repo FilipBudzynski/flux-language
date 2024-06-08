@@ -1,0 +1,10 @@
+circleArea(r int) float    {
+    return 3.14 * (r * r)
+}
+
+main(){
+    int r := 2
+    float a := circleArea(r)
+    print(a)
+}
+# output: 12.56

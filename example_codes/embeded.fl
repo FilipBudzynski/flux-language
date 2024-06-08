@@ -1,0 +1,4 @@
+main(){
+    print(sqrt(9 as float))
+    print(power(3 as float, 2.0))
+}

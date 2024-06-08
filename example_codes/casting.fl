@@ -1,0 +1,9 @@
+main(){
+    int a := 5
+    string c := a as string
+    print(c)        # "5"
+
+    int b := 0
+    bool d := b as bool   # "false"
+    print(d)
+}

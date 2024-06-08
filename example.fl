@@ -1,0 +1,29 @@
+
+getUserRole(userId int) string {
+    return "admin"
+}
+
+checkPermission(role, permission string) bool {
+    return role == "admin" and permission == "edit"
+}
+
+main() {
+    int userId := 123
+
+    switch string userRole := getUserRole(userId) {
+        userRole == "admin" => {
+            if checkPermission(userRole, "edit") {
+                print("Użytkownik ma uprawnienia do edycji")
+            } else {
+                print("Użytkownik nie ma uprawnień do edycji")
+            }
+        },
+        userRole == "user" => {
+            print("Użytkownik ma ograniczone uprawnienia")
+        },
+        default => {
+            print("Nieznana rola użytkownika")
+        }
+    }
+}
+

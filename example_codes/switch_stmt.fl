@@ -1,0 +1,17 @@
+sumUp(a,b int) int {
+    return a + b
+}
+
+whatWillGetMe(a,b int) string {
+    switch int c := sumUp(a, b) {
+    c>2 and c<=4 => "A pint",
+    c==5         => "Decent beverage",
+    c>5 and c<15 => "A NICE bevrage",
+    c>15         => "Whole bottle",
+    default      => "Nothing today!"
+    }
+}
+
+main(){
+    print(whatWillGetMe(2,3))
+}

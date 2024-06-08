@@ -1,0 +1,3 @@
+main(a string, b int) {
+    print(a + " " + b)
+}

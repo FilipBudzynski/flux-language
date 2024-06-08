@@ -1,0 +1,27 @@
+getUserRole(userId int) string {
+    return "admin"
+}
+
+checkPermission(role, permission string) bool {
+    return role == "admin" and permission == "edit"
+}
+
+main() {
+    int userId := 123
+
+    switch string userRole := getUserRole(userId) {
+        userRole == "admin" => {
+            if checkPermission(userRole, "edit") {
+                print("The user has edit permissions")
+            } else {
+                print("User does not have edit permissions")
+            }
+        },
+        userRole == "user" => {
+            print("User has limited permissions")
+        },
+        default => {
+            print("Unknown user role")
+        }
+    }
+}

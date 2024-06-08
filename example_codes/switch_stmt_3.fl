@@ -1,0 +1,16 @@
+kelvinToCelcius(temp int) int {
+    return temp - 273
+}
+
+howCold(kelvin int) string {
+    switch int c := kelvinToCelcius(kelvin) {
+        c <= -20      => "Freezing",
+        c>-20 and c<0 => "Chilling",
+        c>=0 and c<20 => "Warm",
+        c>=20         => "HOT"
+    }
+}
+
+main(){
+    print(howCold(300))
+}

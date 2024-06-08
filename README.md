@@ -2,8 +2,6 @@
 
 ### Compiler and Interpreter for general-purpose programming language with switch - matching patterns instruction.
 
-author: Filip Budzyński
-
 Implementation of all elements in the project written in **Golang**,
 including **Reader**, **Lexer**, **Parser** and **Interpreter**.
 

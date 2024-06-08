@@ -1,265 +1,239 @@
-# TKOM - Dokumentacja Końcowa
+# Flux - Documentation
 
-### Flux - własny język programowania ogólnego przeznaczenia z instrukcją relacyjnych wzorców (switch - matching patterns).
+### General-purpose programming language with switch - matching patterns instruction.
 
-Filip Budzyński, numer albumu: 319021
+author: Filip Budzyński
 
-1. [Opis funkcjonalności](#opis-funkcjonalności)
-2. [Dopuszczane typy danych](#dopuszczane-typy-danych)
-3. [Przyjęte założenia języka](#przyjęte-założenia-języka)
-4. [Charakterystyczne operacje](#charakterystyczne-operacje)
-5. [Funkcje wbudowane](#funkcje-wbudowane)
-6. [Specyfikacja i składnia EBNF](#specyfikacja-i-składnia-ebnf)
-7. [Przykłady dopuszczalnych konstrukcji i semantyka](#przykłady-dopuszczalnych-konstrukcji-i-semantyka)
-8. [Obsługa błędów i przykłady](#obsługa-błędów-i-przykłady)
-9. [Rozróżniane Tokeny](#rozróżniane-tokeny)
-10. [Uruchomienie](#uruchomienie)
-11. [Konwersja typów](#konwersja-typów-i-kombinacja-typów-akceptowalna-dla-operatorów-wieloargumentowych-i-funkcji-wbudowanych)
-12. [Zasady przekazywania zmiennych do funkcji](#zasady-przekazywania-zmiennych-do-funkcji)
-13. [Realizacja modułów](#realizacja-modułów)
-14. [Testy](#testy)
+Implementation of all project elements written in **Golang**,
+including Reader, Lexer, Parser and Interpreter.
 
-## Opis funkcjonalności
+1. [Description of functionality](#description-of-functionality)
+2. [Allowed data types](#allowed-data-types)
+3. [Language-assumptions](#language-assumptions)
+4. [Characteristic operations](#characteristic-operations)
+5. [Built-in functions](#built-in-functions)
+6. [EBNF specification and syntax](#ebnf-specification-and-syntax)
+7. [Examples of allowable constructions and semantics](#examples-of-allowable-constructs-and-semantics)
+8. [Error-handling and examples](#error-handling-and-examples)
+10. [Install](#install)
+11. [Type conversion](#type-conversion-and-type-combination-acceptable-for-multi-argument-operators-and-built-in-functions)
+12. [Rules for passing variables to functions](#rules-for-passing-variables-to-functions)
+13. [Module implementation](#module-implementation)
+14. [Tests](#tests)
 
-Implementacja wszystkich elementów projektu napisana w języku **Golang**,
-w tym Reader, Lexer, Parser i Interpreter.
+## Description of functionality
 
-Projekt języka “Flux” umożliwia:
+The “Flux” language design allows for:
 
-- inicjalizację i przypisywanie zmiennych,
-- wykonywanie operacji arytmetycznych,
-- obsługę instrukcji warunkowych i pętli,
-- definiowanie funkcji z lub bez argumentów,
-- konwersję typów przy użyciu operatora `as`,
-- wywoływanie funkcji,
-- funkcje rekurencyjne,
-- obsługę relacyjnych wzorców w insturkcji switch.
+- initialization and assignment of variables,
+- performing arithmetic operations,
+- support for conditional statements and loops,
+- defining functions with or without arguments,
+- type conversion using the `as` operator,
+- calling functions,
+- recursive functions,
+- support for relational patterns in the switch statement.
 
 ---
 
-## Dopuszczane typy danych
+## Allowed data types
 
-- integer (int)
-- float (float)
-- string (string)
+- integer(int)
+- float
+- string
 - boolean (bool)
 
 ---
 
-## Przyjęte założenia języka
+## Assumptions of the language
 
-- język statycznie typowany,
-- argumenty przekazywane przez wartość,
-- obsługa błędów na poziomie leksykalnym, syntaktycznym i semantycznym,
-- wartość zmiennej może być zmieniona, ale musi zgadzać się jej typ,
-- każdy program napisany w języku “flux” musi posiadać funkcję `main()`, która zawiera główne ciało programu i od tej funkcji rozpoczyna się jego działanie,
-- zmienna zewnętrzna może zostać przykryta poprzez zmienną o tej samej nazwie znajdującej się w bloku funkcji, pętli, instrukcji warunkowej lub instrukcji switch.
-- zdefiniowanych funkcji nie można przesłaniać funkcjami z innymi argumentami,
-- funkcji wbudowanych nie można przesłaniać
-
----
-
-## Charakterystyczne operacje
-
-Operacją charakterystyczną jest dopasowanie wzorców relacyjnych
-
-- Instrukcja `switch` działa na porównywaniu zmiennych, można ją wywołać deklarując zmienne lokalne dla wyrażenia, lub używając zmiennych zdefiniowanych w wyżyszch `scopa'ach`,
-- Deklaracji zmiennych może być więcej niż jedna
-
-Przykładowe wywołanie:
-
-- z deklaracją zmiennej lokalnej dla wyrażenia:
-  ```golang
-  switch int a := 2 + 2 {
-    a == 4  => print("cztery"),
-    default => print("na pewno nie cztery")
-  }
-  ```
-- z wykorzystaniem wcześniej zdefiowanych zmiennych
-  ```golang
-  int a := 3
-  switch {
-    a == 4  => print("cztery"),
-    default => print("na pewno nie cztery")
-  }
-  ```
-
-Zachowanie instrukcji **switch**:
-
-- instukcja switch bo prawej stronie operatora `=>` może posiadać wyrażenie lub blok otwierany przy użyciu `{` i zamknięty przez `}`,
-- instrukcja przechodzi przez napiasne przypadki i wywołuje instrukcje dla pierwszego pozytywnie zewaluowanego przypadku,
-- jeżeli po prawej stronie znajduje się `block`, instrukcja switch nie zwraca wartości, lecz ewaluuje zdefiniowany blok (w nim możena zdefiniować return),
-- jeżeli chcemy aby instrukcja zwróciła jakąś wartość, po prawej stronie `=>` należy umieścieć wyrażenie z typem tej wartości, np.:
-
-  - instrukcja zwracająca wartość `int`:
-
-  ```golang
-  switch {
-      default => 2
-  }
-  ```
-
-  - instrukcja zwracająca wartość `bool`:
-
-  ```golang
-  switch {
-      default => true
-  }
-  ```
-
-  - instrukcja nie zwracająca wartość:
-
-  ```golang
-  switch {
-      default => { print("flux") }
-  }
-  ```
+- statically typed language,
+- arguments passed by value,
+- error handling at the lexical, syntactic and semantic levels,
+- the value of the variable can be changed, but its type must match,
+- every program written in the "flux" language must have a `main()` function, which contains the main body of the program and its operation begins with this function,
+- an external variable can be covered by a variable with the same name located in a function block, loop, conditional statement or switch statement.
+- defined functions cannot be overridden by functions with other arguments,
+- built-in functions cannot be overridden
 
 ---
 
-## Funkcje wbudowane
+## Characteristic operations
 
-W języku wbudowane są niżej wymienione funkcje:
+The characteristic operation is relational pattern matching
 
-- `print(...)` - funkcja drukująca przekazane wartości na Stdout, działa dla dowolnej liczby arguentów,
-- `println(...)` - funkcja bliźniacza do funkcji 'print', która dodatkowo każdy z przekazanych argumentów odziela znakiem nowej lini
-- `sqrt(var1, var2 float) -> float` - funkcja zwracająca pierwiastek kwadratowy, przyjmuje argumenty typu `float`, zwraca argument typu `float`,
-- `power(var1, var2 float) -> float` - funkcja zwracająca liczbę podaną jako pierwszy argument typu `float`, podniesioną do potęgi podaną jako drugi argument typu `float`, zwraca wartość typu `float`,
+- The `switch` instruction works on comparing variables, it can be invoked by declaring variables local to the expression, or using variables defined in higher `scopes`,
+- There can be more than one variable declaration
 
----
+Example call:
 
-## Specyfikacja i składnia EBNF
+- with the declaration of a local variable for the expression:
 
-- symbole terminalne wyróżnione znakiem `*`
+```golang
+switch int a := 2 + 2 {
+    a == 4 => print("four"),
+    default => print("definitely not four")
+}
+```
 
-```go
-program               = { function_definition } ;
+- using previously defined variables
 
-function_definition   = identifier , "(", [ parameters ], ")", [ type_annotation ] , block ;
+```golang
+int a := 3
+switch {
+    a == 4 => print("four"),
+    default => print("definitely not four")
+}
+```
 
-parameters            = parameter_group , { "," , parameter_group } ;
-parameter_group       = identifier , { ",", identifier }, type_annotation ;
+Behavior of the **switch** statement:
 
-type_annotation       = "int" | "float" | "bool" | "str" ;
+- the switch statement because the right side of the `=>` operator may have an expression or block opened with `{` and closed with `}`,
+- the instruction loops through the current cases and calls the instructions for the first positively evaluated case,
+- if there is a 'block` on the right, the switch statement does not return a value, but evaluates the defined block (a return can be defined in it),
+- if we want the instruction to return a value, to the right of `=>` we should place an expression with the type of this value, e.g.:
 
-block                 = "{" , { statement } , "}" ;
+- instruction returning the `int` value:
 
-statement             = variable_declaration
-                      | assignment_or_call
-                      | conditional_statement
-                      | loop_statement
-                      | switch_statement
-                      | return_statement
-                      ;
+```golang
+switch {
+    default => 2
+}
+```
 
-variable_declaration  = type_annotation, identifier, ":=", expression ;
+- instruction returning the `bool` value:
 
-assignment_or_call    = identifier,  ( "(", [ arguments ], ")" ) | ( "=", expression ) ;
+```golang
+switch {
+    default => true
+}
+```
 
-conditional_statement = "if" , expression , block , [ "else" , block ] ;
+- instruction not returning a value:
 
-loop_statement        = "while" , expression, block ;
-
-switch_statement      = "switch", [( variable_declaration, { ",", variable_declaraion } ) ], "{", switch_case, { ",", switch_case "}" ;
-
-switch_case           = ( expression | "default" ), "=>", ( expression | block ) } ;
-
-return_statement      = "return" , [ expression ] ;
-
-
-
-expression            = conjunction_term, { "or", conjunction_term } ;
-
-conjunction_term      = relation_term, { "and", relation_term } ;
-
-relation_term         = additive_term, [ relation_operator, additive_term ] ;
-
-relation_operator     = ">="
-                      | ">"
-                      | "<="
-                      | "<"
-                      | "=="
-                      | "!="
-                      ;
-
-additive_term         = multiplicative_term, { ("+" | "-"), multiplicative_term } ;
-
-multiplicative_term   = casted_term, { ("*" | "/"), casted_term } ;
-
-casted_term           = unary_operator, [ "as", type_annotation ] ;
-
-unary_operator        = [ ("-" | "!") ], term ;
-
-term                  = integer
-                      | float
-                      | bool
-                      | string
-                      | identifier_or_call
-                      | "(" , expression , ")"
-                      ;
-
-identifier_or_call    = identifier, [ "(", [ argumets ], ")" ] ;
-
-arguments             = expression , { "," , expression } ;
-
-identifier            = letter , { letter | digit | "_" } ;
-
-float                 = integer , "." , digit , { digit } ;
-
-*integer              = "0" | positive_digit , { digit } ;
-
-*string               = '"', { literal }, '"' ;
-
-*literal              = letter
-                      | digit
-                      | symbols
-                      ;
-
-*bool                 = "true" | "false" ;
-
-*letter               = "a" | "..." | "z" | "A" | "..." | "Z" ;
-
-*positive_digit       = "1" | "2" | "3" | "4"| "5" | "6"| "7" | "8" | "9" ;
-
-*digit                = "0" | "1" | "2" | "3" | "4"| "5" | "6"| "7" | "8" | "9" ;
-
-*symbols              = "`"
-                      | "~"
-                      | "!"
-                      | "@"
-                      | "#"
-                      | "$"
-                      | "%"
-                      | "^"
-                      | "&"
-                      | "*"
-                      | "("
-                      | ")"
-                      | "_"
-                      | "-"
-                      | "+"
-                      | "="
-                      | "{"
-                      | "}"
-                      | "["
-                      | "]"
-                      | ";"
-                      | ":"
-                      | "'"
-                      | ","
-                      | "."
-                      | "?"
-                      | "/"
-                      | "|"
-                      | "\"
-                      ;
+```golang
+switch {
+    default => { print("flux") }
+}
 ```
 
 ---
 
-## Przykłady dopuszczalnych konstrukcji i semantyka
+## Built-in functions
 
-Inicjalizacja i przypisanie wartości
+The following functions are built into the language:
+
+- `print(...)` - function that prints the passed values ​​to Stdout, works for any number of arguers,
+- `println(...)` - a function similar to the 'print' function, which additionally separates each of the passed arguments with a newline
+- `sqrt(var1, var2 float) -> float` - function returning the square root, accepts `float` type arguments, returns `float` type argument,
+- `power(var1, var2 float) -> float` - a function that returns the number given as the first argument of the `float` type, raised to the power given as the second argument of the `float` type, returns a `float` value,
+
+---
+
+## EBNF specification and syntax
+
+- terminal symbols marked with `*`
+
+```go
+program = { function_definition } ;
+
+function_definition = identifier , "(", [ parameters ], ")", [ type_annotation ] , block ;
+
+parameters = parameter_group , { "," , parameter_group } ;
+parameter_group = identifier , { ",", identifier }, type_annotation ;
+
+type_annotation = "int" | "float
+" | "bool" | "str" ​​;
+
+block = "{" , { statement } , "}" ;
+
+statement = variable_declaration
+ | assignment_or_call
+ | conditional_statement
+ | loop_statement
+ | switch_statement
+ | return_statement
+ ;
+
+variable_declaration = type_annotation, identifier, ":=", expression ;
+
+assignment_or_call = identifier, ( "(", [ arguments ], ")" ) | ( "=", expression ) ;
+
+conditional_statement = "if" , expression , block , [ "else" , block ] ;
+
+loop_statement = "while" , expression, block ;
+
+switch_statement = "switch", [( variable_declaration, { ",", variable_declaraion } ) ], "{", switch_case, { ",", switch_case "}" ;
+
+switch_case = ( expression | "default" ), "=>", ( expression | block ) };
+
+return_statement = "return" , [ expression ] ;
+
+
+
+expression = conjunction_term, { "or", conjunction_term };
+
+conjunction_term = relation_term, { "and", relation_term } ;
+
+relation_term = additive_term, [ relation_operator, additive_term ] ;
+
+relation_operator = ">="
+ | ">"
+ | "<="
+ | "<"
+ | "=="
+ | "!="
+ ;
+
+additive_term = multiplicative_term, { ("+" | "-"), multiplicative_term } ;
+
+multiplicative_term = casted_term, { ("*" | "/"), casted_term } ;
+
+casted_term = unary_operator, [ "as", type_annotation ] ;
+
+unary_operator = [ ("-" | "!") ], term ;
+
+term = integer
+ | float
+ | bool
+ | string
+ | identifier_or_call
+ | "(" , expression , ")"
+ ;
+
+identifier_or_call = identifier, [ "(", [ argumets ], ")" ] ;
+
+arguments = expression , { "," , expression };
+
+identifier = letter , { letter | digit | "_" } ;
+
+float = integer , "." , digit , { digit } ;
+
+*integer = "0" | positive_digit , { digit } ;
+
+*string = '"', { literal }, '"' ;
+
+*literal = letter
+ | digit
+ | symbols
+ ;
+
+*bool = "true" | "false" ;
+
+*letter = "a" | "..." | "with" | "A" | "..." | "WITH" ;
+
+*positive_digit = "1" | "2" | "3" | "4"| "5" | "6"| "7" | "8" | "9" ;
+
+*digit = "0" | "1" | "2" | "3" | "4"| "5" | "6"| "7" | "8" | "9" ;
+
+*symbols = "`" | "~" | "!" | "@" | "#" | "$" | "%" | "^" | "&" | "*" | "(" | ")" | "_" | "-" | "+" | "=" | "{" | "}" | "[" | "]" | ";" | ":" | "'" | "," | "." | "?" | "/" | "|" | "\" ;
+```
+
+---
+
+## Examples of allowable constructions and semantics
+
+Initialization and value assignment
 
 ```go
 int a := 5
@@ -270,7 +244,7 @@ a = 8
 
 ---
 
-Operacje arytmetyczne
+Arithmetic operations
 
 ```go
 int a := 3
@@ -279,72 +253,72 @@ a = a + 3 * (2 - 1)
 
 ---
 
-Komentarze
+Comments
 
 ```go
-# To jest komentrz
+# This is a comment
 ```
 
 ---
 
-Instrukcja warunkowa
+Conditional statement
 
 ```go
 if y > 5 {
-    print("Y jest większe od 5")
-    } else {
-        print("Y jest mniejsze lub równe 5")
-    }
+    print("Y is greater than 5")
+ } else {
+    print("Y is less than or equal to 5")
+ }
 }
 
-string nazwa := "Ala ma psa"
-if nazwa == "Ala ma kota" {
-    print("Kot należy do Ani")
+string name := "Ala has a dog"
+if name == "Ala has a cat" {
+    print("The cat belongs to Ania")
 } else {
-    print("Ani to Ala ani kot")
+    print("It's neither Ala nor the cat")
 }
 ```
 
 ---
 
-Instrukcja pętli while
+While loop statement
 
 ```go
 int num := 10
 while num > 0 {
-    print(num)
-    num = num - i
+ print(num)
+ num = num - i
 }
 ```
 
 ---
 
-Funkcja z argumentem
+Function with argument
 
 ```go
 circleArea(r int) float    {
-    return 3.14 * (r * r)
+ return 3.14 * (r * r)
 }
 
 main(){
-    int r := 2
-    float a := circleArea(r)
-    print(a)
+ int r := 2
+ int a := circleArea(r)
+ print(a)
 }
 # output: 12.56636
 ```
 
 ---
 
-Funkcja rekurencyjna
+Recursive function
 
 ```go
 fibonacci(n) int {
-  if n <= 1 {
+ if n <= 1 {
     return n
-  } else {
+ } else {
     return fibonacci(n - 1) + fibonacci(n - 2)
-  }
+ }
 }
 
 main(){
@@ -356,20 +330,20 @@ main(){
 
 ---
 
-Konwersja typów
+Type conversion
 
 ```go
 int a := 5
 string c := a as string
-print(c)        # "5"
+print(c) # "5"
 
 int b := 0
-bool d := b as bool   # "false"
+bool d = b as bool # "false"
 ```
 
 ---
 
-Funkcje wbudowane
+Built-in features
 
 ```go
 print(sqrt(9 as float))
@@ -388,41 +362,41 @@ Relational patterns - switch instruction
 
 ```go
 sumUp(a,b int) int {
-    return a + b
+ return a + b
 }
 
 whatWillGetMe(a,b int) string {
-    switch int c := sumUp(a, b) {
-        c>2 and c<=4 => "A pint",
-        c==5         => "Decent beverage",
-        c>5 and c<15 => "A NICE bevrage",
-        c>15         => "Whole bottle",
-        default      => "Nothing today!"
-    }
+ switch int c := sumUp(a, b) {
+ c>2 and c<=4 => "A pint",
+ c==5         => "Decent beverage",
+ c>5 and c<15 => "A NICE bevrage",
+ c>15         => "Whole bottle",
+ default      => "Nothing today!"
+ }
 }
 main(){
-    print(whatWillGetMe(2,3))
+ print(whatWillGetMe(2,3))
 }
 # output: Decent beverage
 ```
 
 ```go
 giveMeWord() string {
-    return "word"
+ return "word"
 }
 
 nameNumber() int {
-    string c := giveMeWord()
-    switch {
-        c == "Sammy"  => 0,
-        c == "World"  => 1,
-        c == "word"   => 2,
-        default       => 3
-    }
+ string c := giveMeWord()
+ switch {
+ c == "Sammy" => 0,
+ c == "World" => 1,
+ c == "word" => 2,
+ default => 3
+ }
 }
 
 main(){
-  print(nameNumber())
+ print(nameNumber())
 }
 
 # ourput: 2
@@ -430,50 +404,50 @@ main(){
 
 ```go
 getUserRole(userId int) string {
-    return "admin"
+ return "admin"
 }
 
 checkPermission(role, permission string) bool {
-    return role == "admin" and permission == "edit"
+ return role == "admin" and permission == "edit"
 }
 
 main() {
-    int userId := 123
+ int userId := 123
 
-    switch string userRole := getUserRole(userId) {
-        userRole == "admin" => {
-            if checkPermission(userRole, "edit") {
-                print("Użytkownik ma uprawnienia do edycji")
-            } else {
-                print("Użytkownik nie ma uprawnień do edycji")
-            }
-        },
-        userRole == "user" => {
-            print("Użytkownik ma ograniczone uprawnienia")
-        },
-        default => {
-            print("Nieznana rola użytkownika")
+ switch string userRole := getUserRole(userId) {
+    userRole == "admin" => {
+        if checkPermission(userRole, "edit") {
+            print("The user has edit permissions")
+        } else {
+            print("User does not have edit permissions")
         }
+    },
+    userRole == "user" => {
+        print("User has limited permissions")
+    },
+    default => {
+        print("Unknown user role")
     }
+ }
 }
-# output: Użytkownik ma uprawnienia do edycji
+# output: The user has edit permissions
 ```
 
-## Obsługa błędów i przykłady
+## Error handling and examples
 
-Obsługa błędów odbywa się na wszystkich poziomach, tj.:
+Error handling takes place at all levels, i.e.:
 
 - lexer,
 - parser,
 - interpreter
 
-Ze względu na użycie metody `panic()` w golang'u, przetwarzanie programu jest przerywane po napotkaniu pierwszego błędu. Za 'łapanie' błędu są odpowiedzialne funkcję 'errorHandlers' zdefiniowane dla lexer'a i parser'a, panic wywoływany w interpreterze łapany jest w funkcji main.go, która przekazuje treść błędu na Stdout.
-Początkowo realizacja miała odbyć się z propagacją błędu, po czym koncepcja została zmieniona przy uzgodnieniu z prowadzącym. W przyszłości planowana jest zmiana, przejście z funkcji `panic()` na przekazywanie błędów przez wartości **error**.
-Każdy z modułów ma zdefiniowane stałe z wiadomościami o błędach, które zawierają treść, oraz miejsce wystąpienia.
+Due to the use of the `panic()` method in golang, program processing is interrupted when the first error is encountered. The 'errorHandlers' function defined for the lexer and parser are responsible for 'catching' the error; the panic triggered in the interpreter is caught in the main.go function, which forwards the error content to Stdout.
+Initially, the implementation was to be carried out with error propagation, after which the concept was changed in consultation with the host. A change is planned in the future, moving from the `panic()` function to passing errors via **error** values.
+Each module has defined constants with error messages that contain the content and the place of occurrence.
 
 ---
 
-Format błędów:
+Error format:
 
 ```go
 `error [<line> : <column>]: <message>`
@@ -481,10 +455,10 @@ Format błędów:
 
 ---
 
-Niezamknięty string:
+Unclosed string:
 
 ```go
-string a := "to jest napis
+string a := "this is a string
 ```
 
 ```go
@@ -493,11 +467,11 @@ error [1, 27] String not closed, perhaps you forgot "
 
 ---
 
-Wyjście poza limit wartości int
+Going beyond the int value limit
 
 ```go
 main(){
-    int a := 99999999999999...
+ int a := 99999999999999...
 }
 ```
 
@@ -507,12 +481,12 @@ error [2, 14]: Int value limit Exceeded
 
 ---
 
-Błąd przypisania:
+Assignment error:
 
 ```go
 main(){
-  int a := 5
-  a = "Ala ma kota"
+ int a := 5
+ a = "Ala has a cat"
 }
 ```
 
@@ -522,15 +496,15 @@ error [3, 3]: type mismatch: expected int, got string
 
 ---
 
-Błąd zwracania innego typu:
+Different type return error:
 
 ```go
 sumUp(a, b int) float {
-  return a + b
+ return a + b
 }
 
 main(){
-  print(sumUp(20, 11))
+ print(sumUp(20, 11))
 }
 ```
 
@@ -540,23 +514,23 @@ error [2, 12]: invalid return type: int, expected: float
 
 ---
 
-Błąd w konstrukcji switch, brak przypadku dla zakresu:
+Error in switch design:
 
 ```go
 kelvinToCelcius(temp int) int {
-  return temp - 273
+ return temp - 273
 }
 
 howCold(kelvin int) string {
-  switch int c := kelvinToCelcius(kelvin) {
-    c < -20       => "Freezing",
-    c>0 and c<10   => "Chilling",
+ switch int c := kelvinToCelcius(kelvin) {
+    c < -20 => "Freezing",
+    c>0 and c<10 => "Chilling",
     c>=10 and c<20 => "Warm"
-  }
+ }
 }
 
 main(){
-  print(howCold(300))
+ print(howCold(300))
 }
 ```
 
@@ -566,25 +540,25 @@ error [6, 1]: missing return, function should return type: string
 
 ---
 
-Niezainicjowana zmienna:
+Uninitialized variable:
 
 ```go
 main(){
-  print(a + 10)
+ print(a + 10)
 }
 ```
 
 ```go
-error [2, 9]: undefind: a
+error [2, 9]: undefine: a
 ```
 
 ---
 
-Błąd niezadeklarowanej funkcji:
+Undeclared function error:
 
 ```go
 main() {
-  print(unknownFunction())
+ print(unknownFunction())
 }
 ```
 
@@ -594,14 +568,14 @@ error [2, 9]: undefined function: unknownFunction
 
 ---
 
-Błąd nieprawidłowa liczba argumentów funkcji:
+Error invalid number of function arguments:
 
 ```go
 add(a, b int) int {
-  return a + b
+ return a + b
 }
 main() {
-  print(add(5))
+ print(add(5))
 }
 ```
 
@@ -611,14 +585,14 @@ error [5, 9]: function add expects 2 arguemnts but got: 1
 
 ---
 
-Błąd niezgodności typów w instrukcji warunkowej:
+Type mismatch error in conditional statement:
 
 ```go
 main() {
-  int a := 5
-  if a == "test" {
-    print("Equal")
-  }
+ int a := 5
+ if a == "test" {
+ print("Equal")
+ }
 }
 ```
 
@@ -628,13 +602,13 @@ error [3, 8]: cannot evaluate '==' operation with instances, mismatched types of
 
 ---
 
-Błąd niepoprawnego użycia operatora:
+Incorrect operator usage error:
 
 ```go
 main() {
-  int a := 20
-  string b := "5"
-  int c := a / b
+ int a := 20
+ string b := "5"
+ int c := a / b
 }
 ```
 
@@ -644,14 +618,14 @@ error [4, 14]: cannot evaluate '/' operation with instances of int and string
 
 ---
 
-Błąd niepoprawnego użycia operatora relacyjnego:
+Incorrect use of relational operator error:
 
 ```go
 main() {
-  int a := 5
-  if a < "test" {
-    print("Less than")
-  }
+ int a := 5
+ if a < "test" {
+ print("Less than")
+ }
 }
 ```
 
@@ -661,13 +635,13 @@ error [3, 8]: cannot evaluate '<=' operation with instances, mismatched types of
 
 ---
 
-Błąd dzielenia przez zero:
+Division by zero error:
 
 ```go
 main() {
-  int a := 10
-  int b := 0
-  result := a / b
+ int a := 10
+ int b := 0
+ result := a / b
 }
 ```
 
@@ -675,328 +649,155 @@ main() {
 error [4, 19]: Division by zero
 ```
 
-## Rozróżniane Tokeny
+## Install
+
+To run a program written in **flux** you should:
+
+- you need to have [Golang] compiler(https://go.dev/dl/)
+- clone this repository and **cd** into it
+- build the project `$ go build -o flux .`
+- move the binary `$ sudo mv flux /usr/local/bin/` or run the program via `./flux`
 
 ---
 
-Struktura tokenu
+## Input - streams/files and interpreter startup
 
-- TokeType
-- Position
-- Value
+A program written in Flux can be run from both a file and an input data stream.
+Files should have the extension `.fl`.
 
-1. Zmienne:
-   - **`IDENTIFIER`**
-2. Operatory arytmetyczne:
-   - **`PLUS`**
-   - **`MINUS`**
-   - **`MULTIPLY`**
-   - **`DIVIDE`**
-3. Operatory relacyjne:
-   - **`EQUALS`**
-   - **`NOT_EQUALS`**
-   - **`GREATER_THAN`**
-   - **`LESS_THAN`**
-   - **`GREATER_THAN_OR_EQUAL`**
-   - **`LESS_THAN_OR_EQUAL`**
-4. Operatory logiczne:
-   - **`AND`**
-   - **`OR`**
-   - **`NEGATE`** ( “-” lub “!”)
-5. Słowa kluczowe:
-   - **`IF`**
-   - **`ELSE`**
-   - **`WHILE`**
-   - **`SWITCH`**
-   - **`DEFAULT`**
-   - **`AS`**
-   - **`RETURN`**
-6. Symbole specjalne:
-   - **`ASSIGN`** (**`:=`**)
-   - **`CASE_ARROW`** (**`=>`**)
-   - **`LEFT_BRACE`** (**`{`**)
-   - **`RIGHT_BRACE`** (**`}`**)
-   - **`LEFT_PARENTHESIS`** (**`(`**)
-   - **`RIGHT_PARENTHESIS`** (**`)`**)
-   - **`COMMA`** (**`,`**)
-7. Typy danych:
-   - **`INT`**
-   - **`FLOAT`**
-   - **`STRING`**
-   - **`BOOL`**
-8. Wartości stałe:
-   - **`CONST_INT`**
-   - **`CONST_FLOAT`**
-   - **`CONST_STRING`**
-   - **`CONST_BOOL`**
-   - **`CONST_TRUE`**
-   - **`CONST_FALSE`**
-9. Inne:
-   - **`ETX`** (end of text)
-   - **`UNDEFINED`**
-   - **`COMMENT`**
-
----
-
-## Uruchomienie
-
-Aby uruchomić program napisany w języku **flux** należy:
-
-- posiadać kompilator [Golang](https://go.dev/dl/)
-- sklonować to repozytorium i przejść do niego
-- zbudować projekt `$ go build -o flux .`
-- przenieść binary `$ sudo mv flux /usr/local/bin/` lub uruchamiać program poprzez `./flux`
-
----
-
-## Dane wejściowe - strumienie/pliki i uruchomienie interpretera
-
-Program napisany w języku Flux może być uruchamiany zarówno z pliku, jak i ze strumienia danych wejściowych.
-Pliki powinny mieć rozszerzenie `.fl`.
-
-Standardowym sposobem uruchomienia napisanego programu jest wywołanie kompilatora z argumentem, podającym ścieżkę do pliku:
+The standard way to run a written program is to invoke the compiler with an argument specifying the path to the file:
 
 ```shell
 flux example.fl
 ```
 
-Jeżeli program przyjmuje argumenty początkowe, należy je podać po wskazanym pliku:
+If the program accepts initial arguments, they should be given after the specified file:
 
 ```shell
 flux example.fl 0 1
 ```
 
-Kod programu może zostać przekazany ze standardowego wejścia używając operatora `|` oraz wpisując pierwszy argument jako `-`:
+The program code can be passed from standard input using the `|` operator and typing the first argument as `-`:
 
 ```shell
-echo 'main(){ print("halooo") }' | flux -
+echo 'main(){ print("hellooo") }' | flux -
 ```
 
-lub
+or
 
 ```shell
 flux - < example.fl
 ```
 
-Wywołanie programu ze standardowego wejścia z argumentami:
+Calling the program from standard input with arguments:
 
 ```shell
 echo 'main(a int){ print(a) }' | flux - 2
 ```
 
-lub
+or
 
 ```shell
 flux - < example.fl 0 2
 ```
 
-Język Flux nie wymaga żadnych specjalnych danych konfiguracyjnych do poprawnego działania.
+The Flux language does not require any special configuration data to function properly.
 
-Interpreter programu dostaje dostęp do standardowego wyjścia i wejścia, co pozwala na przechwytywanie wyników działania programu i pokazywanie błędów oraz na podanie danych wejściowych do programu.
+The program interpreter gains access to standard output and input, which allows it to capture program results, show errors, and provide input data to the program.
 
 ---
 
-## Konwersja typów i kombinacja typów akceptowalna dla operatorów wieloargumentowych i funkcji wbudowanych
+## Type conversion and type combination acceptable for multi-argument operators and built-in functions
 
-Ponieważ język jest silnie i statycznie typowany, każda konwersja typu jest jawna a do jej dokonania dostępny jest operator `as`.
+Because the language is strongly and statically typed, any type conversion is explicit and the `as` operator is available to perform it.
 
-Konwersja typów dla typowania statycznego:
+Type conversion for static typing:
 
-| Z       | Do Integer | Do Float | Do String | Do Boolean |
+| With    | To Integer | To Float | To String | To Boolean |
 | ------- | ---------- | -------- | --------- | ---------- |
 | Integer | -          | Explicit | Explicit  | Explicit   |
 | Float   | Explicit   | -        | Explicit  | Explicit   |
 | String  | Explicit   | Explicit | -         | Explicit   |
 | Boolean | Explicit   | Explicit | Explicit  | -          |
 
-W przypadku int na boolean:
+For int to boolean:
 
-- int 0 oznacza `false`
-- inne poza 0 oznaczają `true`
+- int 0 means `false`
+- other than 0 means `true`
 
-W przypadku string na boolean:
+For string to boolean:
 
-- pusty string: “” oznacza `false`
-- niepusty string oznacza `true`
+- empty string: "" means `false`
+- a non-empty string means `true`
 
-W przypadku float na boolean:
+For float to boolean:
 
-- float 0.0 oznacza `false`
-- inne poza 0 oznacza `true`
+- float 0.0 means `false`
+- other than 0 means `true`
 
-**Operacje `*`, `/`, `+`, `-`:**
-Mnożenie (`*`)
+**Operations `*`, `/`, `+`, `-`:**
+Multiplication (`*`)
 
-- **int \* int**: Zwraca wynik jako wartość całkowitą (`int`).
-- **float \* float**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
-- **int \* float** oraz **float \* int**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
+- **int \* int**: Returns the result as an integer value (`int`).
+- **float \* float**: Returns the result as a floating point number (`float`).
+- **int \* float** and **float \* int**: Returns the result as a floating point number (`float`).
 
-Dzielenie (`/`)
+Division (`/`)
 
-- **int / int**: Zwraca wynik jako liczbę całkowitą (`int`).
-- **float / float**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
-- **int / float** oraz **float / int**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
+- **int / int**: Returns the result as an integer (`int`).
+- **float / float**: Returns the result as a floating point number (`float`).
+- **int / float** and **float / int**: Returns the result as a floating point number (`float`).
 
-Dodawanie (`+`)
+Adding (`+`)
 
-- **int + int**: Zwraca wynik jako wartość całkowitą (`int`).
-- **float + float**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
-- **int + float** oraz **float + int**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
-- **string + string**: Konkatenacja ciągów znaków.
-- **int + string**, **float + string**, **string + int** oraz **string + float**: Konkatenacja liczby lub wartości zmiennoprzecinkowej z ciągiem znaków, zwraca (`string`).
+- **int + int**: Returns the result as an integer value (`int`).
+- **float + float**: Returns the result as a floating point number (`float`).
+- **int + float** and **float + int**: Returns the result as a floating point number (`float`).
+- **string + string**: Concatenate strings.
+- **int + string**, **float + string**, **string + int** and **string + float**: Concatenate a number or floating-point value with a string, returns (`string`).
 
-Odejmowanie (`-`)
+Subtraction (`-`)
 
-- **int - int**: Zwraca wynik jako wartość całkowitą (`int`).
-- **float - float**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
-- **int - float** oraz **float - int**: Zwraca wynik jako liczbę zmiennoprzecinkową (`float`).
+- **int - int**: Returns the result as an integer value (`int`).
+- **float - float**: Returns the result as a floating point number (`float`).
+- **int - float** and **float - int**: Returns the result as a floating point number (`float`).
 
-## Zasady przekazywania zmiennych do funkcji
+## Rules for passing variables to functions
 
-Zmienne są przekazywane do funkcji przez wartość. Jako, że nie ma struktur to przekazywanie zmiennej przez referencje nie wydaje się być konieczne.
-
----
-
-## Przeciążanie funkcji
-
-Przeciążanie funkcji nie jest dozwolone, nie mogą istnieć dwie funkcje o takiej samej nazwie.
-
-Funkcje wbudowane również nie mogą być przesłaniane.
+Variables are passed to the function by value. As there are no structures, passing a variable by reference does not seem to be necessary.
 
 ---
 
-## Realizacja modułów
+## Function overloading
 
-1. **Analizator leksykalny** (lexer):
-   - Przetwarza kod źródłowy, znak po znaku, i zgodnie z gramatyką produkuje tokeny do identyfikacji i grupowania leksemów, takich jak identyfikatory, liczby, operatory i słowa kluczowe.
-   - Tokeny przechowują informacje o swoim położeniu w kodzie źródłowym w postaci `(nr linii, nr kolumny)`.
-   - W przypadku natrafienia na niemożliwy do zdekodowania ciąg znaków, analizator skanuje ciąg aż do natrafienia na biały znak i zwraca token `UNDEFIND`
-2. **Analizator składniowy** (parser):
-   - Analizator składniowy jako wejście przyjmuje strumien tokenów wyprodukowany przez analizator leksykalny.
-   - Zadaniem parsera jest wyprodukowanie drzewa rozbioru składniowego programu w formie `node'ów`.
-   - Ściśle oczekuje na spodziewany token przy analizie wyrażenia.
-   - Obsługa błędów składniowych realizowana poprzez `panic()`, zawierające informacje o położeniu błędnego wyrażenia w kodzie programu.
+Function overloading is not allowed, there cannot be two functions with the same name.
+
+Built-in functions also cannot be overridden.
+
+---
+
+## Implementation of modules
+
+1. **Lexical analyzer** (lexer):
+
+- Processes the source code character by character, and according to the grammar produces tokens to identify and group lexemes such as identifiers, numbers, operators and keywords.
+- Tokens store information about their location in the source code in the form `(line no., column no.)`.
+- If a string of characters is encountered that is impossible to decode, the analyzer scans the string until it finds white character and returns the `UNDEFIND` token
+
+2. **Syntactic parser** (parser):
+
+- The parser takes as input a stream of tokens produced by the lexical parser.
+- The task of the parser is to produce a parsing tree of the program in the form of `nodes'.
+- Strictly waits for expected token when parsing expression.
+- Syntax error handling implemented via `panic()`, containing information about the location of the incorrect expression in the program code.
+
 3. **Interpreter**:
-   - Operuje na drzewie rozbioru składniowego.
-   - Napisany przy użyciu wzorca projektowego "Visitor (wizytator)".
-   - Interpreter odwiedza elementy drzewa skłądniowego, ewaluując ich zawartość. Nadaje wartości zmiennym, sprawdza zgodność typów, zgodność podawanych do wywołań argumentów, uruchamia wywoływane funkcje (również funkcje wbudowane).
-   - Dba o to aby wywołania rekurencyjnie nie przekroczyly zdefiowanego limitu (implementacja za pomocą CallStack).
-   - Wykonuje operacje arytmetyczne, obsługuje instrukcje warunkowe, pętle, wywołania funkcji oraz inne konstrukcje językowe.
+
+- Operates on a syntactic parsing tree.
+- Written using the "Visitor" design pattern.
+- The interpreter visits the elements of the syntax tree, evaluating their contents. Assigns values ​​to variables, checks type compatibility, compliance of arguments supplied to calls, runs called functions (including built-in functions).
+- Makes sure that recursive calls do not exceed the defined limit (implementation using CallStack).
+- Performs arithmetic operations, supports conditional statements, loops, function calls and other language constructs.
 
 ---
 
-## Testy
-
-### Scanner
-
-- TestScanner: Zbiór testów sprawdzający poprawność działania skanera dla różnych przykładowych wejść. Testy sprawdzają, czy wyniki zwrócone przez skaner są zgodne z oczekiwanymi znakami i ich pozycjami. Testuje same ciągi znaków jak i ciągi znaków ze znakami nowej lini i poprawnośc zachowania w przypadku `\r\n` oraz `\r\t`.
-
-- TestScannerMultipleEOF: Testuje, czy skaner poprawnie zwraca EOF i jego pozycję w tekście. Definiuje pusty `input` i oczekuje, że skaner zwróci kilka EOF z tą samą pozycją.
-
-### Lexer
-
-Testy jednostkowe (unit tests):
-
-- TestSingleTokens: Zbiór testów sprawdzający poprawność tworzenia każdego z tokenów.
-
-Testy ciągu tokenów:
-
-- TestLexerCodeExample: Zbiór testów sprawdzający poprawność analizy sekwencji tokenów w przykładowym kodzie źródłowym.
-
-Testy obsługi błędów:
-
-- TestStringNotClosed: Sprawdza, czy analizator leksykalny poprawnie zgłasza błąd w przypadku niezamkniętych ciągów znaków.
-- TestIntValueLimitExceeded: Testuje, czy analizator leksykalny zgłasza błąd, gdy wartość liczby całkowitej przekracza limit.
-- TestLexerStringTokenEscaping: Sprawdza, czy analizator leksykalny prawidłowo obsługuje znaki specjalne w ciągach znaków.
-- TestLexerInvalidStringTokenEscaping: Testuje, czy analizator leksykalny zgłasza błąd dla niepoprawnych znaków specjalnych w ciągach znaków.
-- TestStringValueLimitExceeded: Sprawdza, czy analizator leksykalny zgłasza błąd, gdy długość ciągu znaków przekracza limit.
-- TestLexerErrorHandling: Testuje, czy analizator leksykalny poprawnie obsługuje błędy i zatrzymuje się po napotkaniu błędu, a także czy zgłasza oczekiwane błędy.
-
-### Parser
-
-Testy sprawdzające poprawnośc parsowania ciągu tokenów wejsciowych na elementy drzewa AST, od terminalnych do bardziej złożonych (zagłębionych).
-Testy odpowiedzialne są również za sprawdzanie czy w określonych przypadkach wyrzucane są błędy z poprawnymi treściami.
-
-- TestParseParameterGroup
-- TestParseParameters
-- TestParseIdentifier
-- TestParseFunctionDefinitions
-- TestParseExpressionIdentifierAsTerm
-- TestParseExpressions: Zbiór testów sprawdzających poprawność każdego z expression zdefiowanego w EBNF
-- TestParseVariableDeclaration: Zbiór testów sprawdzających poprawnośc przypisywania wartości do zmiennej
-- TestParseNegateExpression
-- TestParseVariableDeclarationsWithTerm
-- TestParseFloatExpression
-- TestParseStringExpression
-- TestParseParenthesisExpression
-- TestParseOrAndExpression
-- TestParseIfStatement
-- TestParseIfStatementWithElse
-- TestParseWhileStatement
-- TestSwitchStatement
-- TestSwitchStatementWithDefault
-- TestSwitchStatementWithBlock
-- TestParseSwitchError
-- TestParseProgram
-- TestParseProgramFunctionWithType
-
-### Interpreter
-
-Testy wyrażeń liczbowych:
-
-- TestVisitIntExpression: Sprawdza, czy odwiedzając wyrażenie liczbowe, otrzymuje się prawidłowy wynik.
-- TestVisitFloatExpression: Testuje poprawność przetwarzania wyrażenia zmiennoprzecinkowego.
-- TestVisitStringExpression: Sprawdza poprawność przetwarzania wyrażenia tekstowego.
-- TestVisitBoolExpression: Testuje poprawność przetwarzania wyrażenia logicznego.
-
-Testy wyrażeń logicznych:
-
-- TestVisitAndExpression: Sprawdza, czy poprawnie przetwarzane są wyrażenia AND.
-- TestVisitOrExpression: Testuje poprawność przetwarzania wyrażeń OR.
-
-Testy wyrażeń arytmetycznych:
-
-- TestVisitSumExpression: Sprawdza, czy wyrażenia sumy są przetwarzane poprawnie dla różnych typów danych.
-- TestVisitSumExpressionString: Testuje przetwarzanie sumy wyrażeń tekstowych.
-- TestVisitSubstractExpressionInt: Testuje poprawność przetwarzania wyrażenia odejmowania dla wartości integer.
-- TestVisitSubstractExpressionFloat: Testuje poprawność przetwarzania wyrażenia odejmowania dla wartości float.
-- TestVisitSubstractExpressionFloatMinusInt: Testuje poprawność przetwarzania wyrażenia odejmowania dla wartości float i integer.
-- TestVisitSubstrackExpressionIntMinusFloat: Testuje poprawność przetwarzania wyrażenia odejmowania dla wartości integer i float.
-
-Inne testy:
-
-- TestVisitNegateExpression: Testuje przetwarzanie negacji dla różnych typów wyrażeń.
-
-- TestCastExpression: Zbiór testów sprawdzający poprawność przetwarzania wyrażenia kastowania.
-
-Testy innych elementów drzewa AST:
-
-- TestVisitIdentifier: Sprawdza poprawność przetwarzania identyfikatorów, czy wartość ze Scope zostanie zwrócona.
-- TestVisitVariable: Sprawdza poprawność przetwarzania zmiennej, czy zmienna zostaje poprawnie dodana do Scope.
-- TestVisitWhileStatement: Sprawdza, czy wartość z wywołania pętli.
-- TestVisitIfStatementConditionTrue: Sprawdza, czy wartość z wywołania bloku if jest przenoszona do poprzdniego Scope poprzez LastResult.
-- TestVisitIfStatementElseBlock: Sprawdza czy wartość LastResult została poprawnie wyczyszczona wychodząc z bloków if.
-- TestScopeVariables: Testuje czy zmienne są poprawnie przechowywane w Scope.
-- TestVisitFunctionCall: Testuje Wywołanie funkcji.
-- TestVisitSwitchCase: Testuje poprawność przetwarzania switch-case.
-- TestVisitDefaultSwitchCase: Testuje poprawność przetwarzania default-case.
-- TestVisitSwitchStatement: Testuje poprawność przetwarzania switch statement ze zwracaniem wartości.
-- TestSwitchWithBlock: Testuje poprawność przetwarzania switch statement z blokiem.
-- TestRecursion: Testuje poprawność przetwarzania funkcji rekurencyjnych i przekraczania limitu wywołań rekurencyjnych.
-
-Testy złożonych funkcji (fragmentów kodu):
-
-- TestReturningNestedBlocks: Sprawdza, funkcja jest poprawnie zamykana po osiągnięciu pierwszego **return**.
-- TestVisitFunctionCallWithIdentifier: Testuje czy wywołanie funkcji odbywa się poprawnie z przekazaniem identyfikatorów jako argumenty.
-- TestVisitAsignmentWithFunctionCall: Testuje czy przypisanie do zmiennej odbywa się poprawnie z wywołaniem funkcji.
-- TestVisitNestedFunctionCallWithReturn: Testuje zwracanie poprawnej wartości z zagnieżdżonych Scope'ów.
-- TestVisitWhileStatementWithReturn: Testuje poprawność przetwarzania pętli ze zwracaniem wartości.
-
-Testy obsługi błędów:
-
-- TestVariableNotInScope: Sprawdza czy poprawnie zostal wyrzucony błąd z niezdefiniowaną zmienną.
-- TestSearchVariableInScope: Sprawdza czy wartośc z wywołania funkcji nie jest przenoszona do poprzdniego Scope poprzez LastResult. Wyłapuje błąd z odpowiednim komunikatem o niezdefiniowanej zmiennej.
-- TestParametersAndArguments: Testuje poprawności wyłapywanych błędów podczas przetwarzania niepoprawnej ilości argumentów i parametrow lub podania niepoprawnych typów.
-- TestFunctionWithSwitch: Sprawdza czy poprawnie zostanie wyłapany błąd, ze względu na brak return'a i switch_case'ów które zwróciły by wartości, gdy funkcja w której zdefiniowany jest switch powinna takową zwrócić.
-- TestVariableDeclarationMissmatch: Testuje poprawnośc wyłapanych błędów i ich komunikatów.
-- TestEmbededFunction: Testuje poprawność przetwarzania funkcji wbudowanych.
